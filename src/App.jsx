@@ -533,35 +533,41 @@ function AppIcon({ meta, size = 22 }) {
 }
 
 function buildDiscordSummary(entry, artifactMaster) {
-  const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
+  const artifactName = (artifactId) =>
+    artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
+
   const statLine = (hero) =>
     `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${hero.stats.Speed || "?"} | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
 
   const lines = [];
+
   lines.push(`**${entry.opponent || "Unnamed opponent"}**`);
-  if (entry.note) lines.push(`_${entry.note}_`);
+
+  if (entry.note) {
+    lines.push(`_${entry.note}_`);
+  }
+
   lines.push("");
 
   for (const roundKey of ["R1", "R2"]) {
     lines.push(`__${roundKey === "R1" ? "Round 1" : "Round 2"}__`);
+
     entry.rounds[roundKey].forEach((hero, index) => {
       const sets = hero.sets.length ? hero.sets.join(", ") : "?";
+
       lines.push(
-        `${index + 1}. **${hero.name || "?"}**
-` +
-          `   ${statLine(hero)}
-` +
-          `   **Sets:** ${sets}
-` +
-          `   **Artifact:** ${artifactName(hero.artifactId)}${hero.speedNote ? `
-   **Additional Notes:** ${hero.speedNote}` : ""}`
+        `${index + 1}. **${hero.name || "?"}**\n` +
+          `   ${statLine(hero)}\n` +
+          `   **Sets:** ${sets}\n` +
+          `   **Artifact:** ${artifactName(hero.artifactId)}` +
+          `${hero.speedNote ? `\n   **Additional Notes:** ${hero.speedNote}` : ""}`
       );
     });
+
     lines.push("");
   }
 
-  return lines.join("
-").trim();
+  return lines.join("\n").trim();
 }
 
 function Field({ label, value, onChange, placeholder = "" }) {
@@ -987,43 +993,45 @@ export default function EpicSevenGwTrackerApp() {
   };
 
   const exportCurrentEntry = async () => {
-  try {
-    const safeName = slugify(entry.opponent || "unnamed-opponent");
-    const date = new Date().toISOString().slice(0, 10);
-    const filename = `${date}-${safeName}.json`;
+    try {
+      const safeName = slugify(entry.opponent || "unnamed-opponent");
+      const date = new Date().toISOString().slice(0, 10);
+      const filename = `${date}-${safeName}.json`;
 
-    const savedPath = await saveJsonNextToExe(filename, entry);
-    setStatus(`Current entry saved: ${savedPath}`);
-  } catch (error) {
-    console.error(error);
-    setStatus(`Export failed: ${error.message || error}`);
-  }
-};
+      const savedPath = await saveJsonNextToExe(filename, entry);
+      setStatus(`Current entry saved: ${savedPath}`);
+    } catch (error) {
+      console.error(error);
+      setStatus(`Export failed: ${error.message || error}`);
+    }
+  };
 
   const exportAllEntries = async () => {
     try {
       const fullEntries = [];
+
       for (const item of savedEntries) {
         const full = await loadEntryFromDb(item.id);
         if (full) fullEntries.push(full);
       }
 
-      const payload = {
-        app: "Epic Seven GW Tracker",
-        version: 4,
-        exportedAt: new Date().toISOString(),
-        plannedFolderStructure: "e7-scouts/opponents/<opponent>/<date>-<opponent>.json",
-        savedEntries: fullEntries,
-      };
+    const payload = {
+      app: "Epic Seven GW Tracker",
+      version: 4,
+      exportedAt: new Date().toISOString(),
+      savedEntries: fullEntries,
+    };
 
-      const date = new Date().toISOString().slice(0, 10);
-      downloadTextFile(`e7-scouts__backups__backup-${date}.json`, JSON.stringify(payload, null, 2));
-      setStatus("Full SQLite backup exported as JSON.");
-    } catch (error) {
-      console.error(error);
-      setStatus("Backup export failed.");
-    }
-  };
+    const date = new Date().toISOString().slice(0, 10);
+    const filename = `backup-${date}.json`;
+
+    const savedPath = await saveJsonNextToExe(filename, payload);
+    setStatus(`Full backup saved: ${savedPath}`);
+  } catch (error) {
+    console.error(error);
+    setStatus(`Backup export failed: ${error.message || error}`);
+  }
+};
 
   const importJson = async (event) => {
     const file = event.target.files?.[0];
