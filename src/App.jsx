@@ -545,13 +545,9 @@ function buildDiscordSummary(entry, artifactMaster) {
       const artifact = artifactName(normalizedHero.artifactId);
 
       lines.push(`${index + 1}. **${normalizedHero.name || "?"}**`);
-      lines.push("");
-      lines.push(`**Stats:** ${statLine(normalizedHero)}`);
-      lines.push("");
+      lines.push(statLine(normalizedHero));
       lines.push(`**Sets:** ${sets}`);
-      lines.push("");
       lines.push(`**Artifact:** ${artifact}`);
-      lines.push("");
 
       if (normalizedHero.additionalNotes) {
         lines.push(`**Additional Notes:** ${normalizedHero.additionalNotes}`);
