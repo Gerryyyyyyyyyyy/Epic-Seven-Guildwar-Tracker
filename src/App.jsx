@@ -28,22 +28,22 @@ const STAT_FIELDS = ["ATK", "DEF", "HP", "Speed", "EFF", "ER"];
 // public/icons/classes/warrior.png
 // In Tauri/Vite, files inside public/ are reachable as /icons/...
 const SET_OPTIONS = [
-  { name: "Immunity", image: "icons/sets/immunity.png", fallback: "🛡️" },
-  { name: "Counter", image: "icons/sets/counter.png", fallback: "↩️" },
-  { name: "Riposte", image: "icons/sets/riposte.png", fallback: "⚔️" },
-  { name: "Warfare", image: "icons/sets/warfare.png", fallback: "🔥" },
-  { name: "Pursuit", image: "icons/sets/persuit.png", fallback: "🏹" },
-  { name: "Protection", image: "icons/sets/protection.png", fallback: "🛡" },
-  { name: "Injury", image: "icons/sets/injury.png", fallback: "🩸" },
+  { name: "Immunity", image: "./icons/sets/immunity.png", fallback: "🛡️" },
+  { name: "Counter", image: "./icons/sets/counter.png", fallback: "↩️" },
+  { name: "Riposte", image: "./icons/sets/riposte.png", fallback: "⚔️" },
+  { name: "Warfare", image: "./icons/sets/warfare.png", fallback: "🔥" },
+  { name: "Pursuit", image: "./icons/sets/persuit.png", fallback: "🏹" },
+  { name: "Protection", image: "./icons/sets/protection.png", fallback: "🛡" },
+  { name: "Injury", image: "./icons/sets/injury.png", fallback: "🩸" },
 ];
 
 const CLASS_OPTIONS = [
-  { name: "Knight", image: "icons/classes/knight.png", fallback: "🛡️" },
-  { name: "Warrior", image: "icons/classes/warrior.png", fallback: "🪓" },
-  { name: "Thief", image: "icons/classes/thief.png", fallback: "🗡️" },
-  { name: "Ranger", image: "icons/classes/ranger.png", fallback: "🏹" },
-  { name: "Mage", image: "icons/classes/mage.png", fallback: "🔮" },
-  { name: "Soul Weaver", image: "icons/classes/soul-weaver.png", fallback: "✨" },
+  { name: "Knight", image: "./icons/classes/knight.png", fallback: "🛡️" },
+  { name: "Warrior", image: "./icons/classes/warrior.png", fallback: "🪓" },
+  { name: "Thief", image: "./icons/classes/thief.png", fallback: "🗡️" },
+  { name: "Ranger", image: "./icons/classes/ranger.png", fallback: "🏹" },
+  { name: "Mage", image: "./icons/classes/mage.png", fallback: "🔮" },
+  { name: "Soul Weaver", image: "./icons/classes/soul-weaver.png", fallback: "✨" },
 ];
 
 const HERO_MASTER_DATA = [
