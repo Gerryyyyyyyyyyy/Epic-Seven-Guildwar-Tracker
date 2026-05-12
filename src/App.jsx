@@ -204,7 +204,14 @@ function blankEntry() {
 }
 
 async function getDb() {
-  return await Database.load(DB_URL);
+  try {
+    return await Database.load(DB_URL);
+  } catch (error) {
+    console.error("SQLite load failed:", error);
+    throw new Error(
+      "SQLite could not be loaded. This usually means the app is not running inside Tauri, the SQL plugin is missing, or SQL permissions are not configured."
+    );
+  }
 }
 
 async function initDb() {
@@ -291,7 +298,7 @@ async function ensureColumn(db, tableName, columnName, columnType) {
 
 async function importBundledMasterData(db) {
   try {
-    const heroResponse = await fetch("data/herodata.json");
+    const heroResponse = await fetch("./data/herodata.json")
     if (heroResponse.ok) {
       const rawHeroes = await heroResponse.json();
       await upsertHeroes(db, normalizeFribbelsHeroes(rawHeroes));
@@ -301,7 +308,7 @@ async function importBundledMasterData(db) {
   }
 
   try {
-    const artifactResponse = await fetch("data/artifactdata.json");
+    const artifactResponse = await fetch("./data/artifactdata.json")
     if (artifactResponse.ok) {
       const rawArtifacts = await artifactResponse.json();
       await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
@@ -578,6 +585,14 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
       .slice(0, 50);
   }, [options, query]);
 
+  const closeAndResetIfNeeded = () => {
+    window.setTimeout(() => {
+      setOpen(false);
+      const nextSelected = options.find((option) => option.value === value);
+      setQuery(nextSelected?.label ?? "");
+    }, 120);
+  };
+
   return (
     <div className="relative">
       <label className="block">
@@ -590,6 +605,13 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
             if (!event.target.value) onChange("");
           }}
           onFocus={() => setOpen(true)}
+          onBlur={closeAndResetIfNeeded}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setOpen(false);
+              event.currentTarget.blur();
+            }
+          }}
           placeholder={placeholder}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
         />
@@ -857,9 +879,14 @@ export default function EpicSevenGwTrackerApp() {
         setArtifacts(master.artifacts.length ? master.artifacts : ARTIFACT_MASTER_DATA);
         await refreshList();
         setStatus(`SQLite database ready. Loaded ${master.heroes.length} heroes and ${master.artifacts.length} artifacts.`);
+        if (master.heroes.length <= HERO_MASTER_DATA.length || master.artifacts.length <= ARTIFACT_MASTER_DATA.length) {
+          setStatus(
+            `SQLite database ready, but bundled data was not imported. Check that public/data/herodata.json and public/data/artifactdata.json exist. Current: ${master.heroes.length} heroes, ${master.artifacts.length} artifacts.`
+          );
+        }
       } catch (error) {
         console.error(error);
-        setStatus("SQLite could not start. Make sure this runs inside Tauri, not a normal browser.");
+        setStatus(`SQLite could not start: ${error.message || error}. Make sure this runs inside Tauri and that @tauri-apps/plugin-sql is configured.`);
       }
     })();
   }, []);
