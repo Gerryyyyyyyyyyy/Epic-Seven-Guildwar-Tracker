@@ -538,16 +538,21 @@ function buildDiscordSummary(entry, artifactMaster) {
     entry.rounds[roundKey].forEach((hero, index) => {
       const sets = hero.sets.length ? hero.sets.join(", ") : "?";
       lines.push(
-        `${index + 1}. **${hero.name || "?"}** (${hero.class})\n` +
-          `   ${statLine(hero)}\n` +
-          `   Sets: ${sets}\n` +
-          `   Artifact: ${artifactName(hero.artifactId)}${hero.speedNote ? `\n   Speed note: ${hero.speedNote}` : ""}`
+        `${index + 1}. **${hero.name || "?"}**
+` +
+          `   ${statLine(hero)}
+` +
+          `   **Sets:** ${sets}
+` +
+          `   **Artifact:** ${artifactName(hero.artifactId)}${hero.speedNote ? `
+   **Additional Notes:** ${hero.speedNote}` : ""}`
       );
     });
     lines.push("");
   }
 
-  return lines.join("\n").trim();
+  return lines.join("
+").trim();
 }
 
 function Field({ label, value, onChange, placeholder = "" }) {
@@ -1075,7 +1080,7 @@ export default function EpicSevenGwTrackerApp() {
 
   return (
     <main className="min-h-screen bg-slate-100 p-4 text-slate-900 md:p-8">
-      <div className="mx-auto max-w-[1800px] space-y-6 px-2">
+      <div className="mx-auto max-w-7xl space-y-6">
         <header className="rounded-3xl bg-white p-6 shadow-sm md:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -1084,7 +1089,7 @@ export default function EpicSevenGwTrackerApp() {
               </div>
               <h1 className="text-3xl font-black tracking-tight text-slate-950 md:text-5xl">Defense Scout Interface</h1>
               <p className="mt-3 max-w-2xl text-slate-500">
-                SQLite desktop version with save/load , JSON import/export, and Discord copy output.
+                SQLite desktop version with custom image icons, better save/load flow, JSON import/export, and Discord copy output.
               </p>
             </div>
 
@@ -1101,7 +1106,7 @@ export default function EpicSevenGwTrackerApp() {
           </div>
         </header>
 
-        <div className="grid gap-5 xl:grid-cols-[250px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <aside className="space-y-4">
             <section className="rounded-3xl bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2"><Users size={18} /><h2 className="font-bold">Opponent</h2></div>
