@@ -298,25 +298,41 @@ async function ensureColumn(db, tableName, columnName, columnType) {
   }
 }
 
-async function importBundledMasterData(db) {
-  try {
-    const heroResponse = await fetch("./data/herodata.json")
-    if (heroResponse.ok) {
-      const rawHeroes = await heroResponse.json();
-      await upsertHeroes(db, normalizeFribbelsHeroes(rawHeroes));
+async function fetchBundledJson(paths) {
+  for (const path of paths) {
+    try {
+      const response = await fetch(path);
+      if (response.ok) return await response.json();
+    } catch {
+      // Try next path.
     }
-  } catch (error) {
-    console.warn("Bundled hero data not found or invalid.", error);
+  }
+  return null;
+}
+
+async function importBundledMasterData(db) {
+  const rawHeroes = await fetchBundledJson([
+    "./data/herodata.json",
+    "data/herodata.json",
+    "/data/herodata.json",
+  ]);
+
+  if (rawHeroes) {
+    await upsertHeroes(db, normalizeFribbelsHeroes(rawHeroes));
+  } else {
+    console.warn("Bundled hero data not found. Expected public/data/herodata.json");
   }
 
-  try {
-    const artifactResponse = await fetch("./data/artifactdata.json")
-    if (artifactResponse.ok) {
-      const rawArtifacts = await artifactResponse.json();
-      await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
-    }
-  } catch (error) {
-    console.warn("Bundled artifact data not found or invalid.", error);
+  const rawArtifacts = await fetchBundledJson([
+    "./data/artifactdata.json",
+    "data/artifactdata.json",
+    "/data/artifactdata.json",
+  ]);
+
+  if (rawArtifacts) {
+    await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
+  } else {
+    console.warn("Bundled artifact data not found. Expected public/data/artifactdata.json");
   }
 }
 
@@ -325,8 +341,8 @@ async function upsertHeroes(db, heroes) {
     await db.execute(
       `INSERT INTO heroes (id, name, class, element, rarity, icon, thumbnail)
        VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
+       ON CONFLICT(name) DO UPDATE SET
+         id = excluded.id,
          class = excluded.class,
          element = excluded.element,
          rarity = excluded.rarity,
@@ -1024,7 +1040,7 @@ export default function EpicSevenGwTrackerApp() {
       setStatus(`Imported ${normalizedHeroes.length} heroes into SQLite.`);
     } catch (error) {
       console.error(error);
-      setStatus("Hero import failed. Please select the Fribbels herodata.json file.");
+      setStatus(`Hero import failed: ${error.message || error}`);
     } finally {
       event.target.value = "";
     }
