@@ -10,9 +10,11 @@ html,
 body,
 #root {
   min-height: 100%;
+  background: #020617;
 }
 
 body {
   margin: 0;
   background: #020617;
+  color: #e2e8f0;
 }
