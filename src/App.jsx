@@ -618,7 +618,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
       </label>
 
       {open && (
-        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-80 w-[min(42rem,90vw)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
           {filtered.length === 0 ? (
             <div className="px-3 py-2 text-sm text-slate-500">No results</div>
           ) : (
@@ -632,9 +632,9 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
                   setQuery(option.label);
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100"
+                className="flex w-full items-center justify-between gap-4 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-slate-100"
               >
-                <span>{option.label}</span>
+                <span className="min-w-0 flex-1 whitespace-normal leading-snug">{option.label}</span>
                 {option.meta && <span className="text-xs text-slate-400">{option.meta}</span>}
               </button>
             ))
@@ -776,7 +776,7 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, onHeroChange
         </div>
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-3">
+      <div className="grid gap-5 xl:grid-cols-2">
         {heroes.map((hero, index) => (
           <HeroCard
             key={`${roundKey}-${index}`}
@@ -1007,6 +1007,50 @@ export default function EpicSevenGwTrackerApp() {
     }
   };
 
+  const importHeroMasterJson = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const normalizedHeroes = normalizeFribbelsHeroes(parsed);
+      const db = await getDb();
+      await upsertHeroes(db, normalizedHeroes);
+      const master = await loadMasterData();
+      setHeroes(master.heroes);
+      setArtifacts(master.artifacts);
+      setStatus(`Imported ${normalizedHeroes.length} heroes into SQLite.`);
+    } catch (error) {
+      console.error(error);
+      setStatus("Hero import failed. Please select the Fribbels herodata.json file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const importArtifactMasterJson = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const normalizedArtifacts = normalizeFribbelsArtifacts(parsed);
+      const db = await getDb();
+      await upsertArtifacts(db, normalizedArtifacts);
+      const master = await loadMasterData();
+      setHeroes(master.heroes);
+      setArtifacts(master.artifacts);
+      setStatus(`Imported ${normalizedArtifacts.length} artifacts into SQLite.`);
+    } catch (error) {
+      console.error(error);
+      setStatus("Artifact import failed. Please select the Fribbels artifactdata.json file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   const copyDiscord = async () => {
     await navigator.clipboard.writeText(buildDiscordSummary(entry, artifacts));
     setStatus("Discord summary copied to clipboard.");
@@ -1056,6 +1100,16 @@ export default function EpicSevenGwTrackerApp() {
                 Opponents are stored in local SQLite. JSON export/import is used for backups and sharing.
               </p>
               <p className="text-xs font-medium text-slate-600">{status}</p>
+              <div className="mt-3 flex flex-col gap-2">
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium shadow-sm hover:bg-slate-50">
+                  <Upload className="mr-2 h-3 w-3" /> Import heroes JSON
+                  <input type="file" accept="application/json" onChange={importHeroMasterJson} className="hidden" />
+                </label>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium shadow-sm hover:bg-slate-50">
+                  <Upload className="mr-2 h-3 w-3" /> Import artifacts JSON
+                  <input type="file" accept="application/json" onChange={importArtifactMasterJson} className="hidden" />
+                </label>
+              </div>
             </section>
 
             <section className="rounded-3xl bg-white p-5 shadow-sm">
