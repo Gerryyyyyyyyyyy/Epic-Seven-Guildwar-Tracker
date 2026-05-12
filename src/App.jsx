@@ -28,22 +28,22 @@ const STAT_FIELDS = ["ATK", "DEF", "HP", "Speed", "EFF", "ER"];
 // public/icons/classes/warrior.png
 // In Tauri/Vite, files inside public/ are reachable as /icons/...
 const SET_OPTIONS = [
-  { name: "Immunity", image: "icons/sets/immunity.png", fallback: "🛡️" },
-  { name: "Counter", image: "icons/sets/counter.png", fallback: "↩️" },
-  { name: "Riposte", image: "icons/sets/riposte.png", fallback: "⚔️" },
-  { name: "Warfare", image: "icons/sets/warfare.png", fallback: "🔥" },
-  { name: "Pursuit", image: "icons/sets/persuit.png", fallback: "🏹" },
-  { name: "Protection", image: "icons/sets/protection.png", fallback: "🛡" },
-  { name: "Injury", image: "icons/sets/injury.png", fallback: "🩸" },
+  { name: "Immunity", image: "/icons/sets/immunity.png", fallback: "🛡️" },
+  { name: "Counter", image: "/icons/sets/counter.png", fallback: "↩️" },
+  { name: "Riposte", image: "/icons/sets/riposte.png", fallback: "⚔️" },
+  { name: "Warfare", image: "/icons/sets/warfare.png", fallback: "🔥" },
+  { name: "Pursuit", image: "/icons/sets/pursuit.png", fallback: "🏹" },
+  { name: "Protection", image: "/icons/sets/protection.png", fallback: "🛡" },
+  { name: "Injury", image: "/icons/sets/injury.png", fallback: "🩸" },
 ];
 
 const CLASS_OPTIONS = [
-  { name: "Knight", image: "icons/classes/knight.png", fallback: "🛡️" },
-  { name: "Warrior", image: "icons/classes/warrior.png", fallback: "🪓" },
-  { name: "Thief", image: "icons/classes/thief.png", fallback: "🗡️" },
-  { name: "Ranger", image: "icons/classes/ranger.png", fallback: "🏹" },
-  { name: "Mage", image: "icons/classes/mage.png", fallback: "🔮" },
-  { name: "Soul Weaver", image: "icons/classes/soul-weaver.png", fallback: "✨" },
+  { name: "Knight", image: "/icons/classes/knight.png", fallback: "🛡️" },
+  { name: "Warrior", image: "/icons/classes/warrior.png", fallback: "🪓" },
+  { name: "Thief", image: "/icons/classes/thief.png", fallback: "🗡️" },
+  { name: "Ranger", image: "/icons/classes/ranger.png", fallback: "🏹" },
+  { name: "Mage", image: "/icons/classes/mage.png", fallback: "🔮" },
+  { name: "Soul Weaver", image: "/icons/classes/soul-weaver.png", fallback: "✨" },
 ];
 
 const HERO_MASTER_DATA = [
@@ -94,6 +94,56 @@ const ARTIFACT_MASTER_DATA = [
 
 function uid() {
   return crypto.randomUUID();
+}
+
+function mapFribbelsRole(role) {
+  const normalized = String(role || "").toLowerCase();
+  const roleMap = {
+    warrior: "Warrior",
+    knight: "Knight",
+    assassin: "Thief",
+    ranger: "Ranger",
+    mage: "Mage",
+    manauser: "Soul Weaver",
+  };
+  return roleMap[normalized] || "";
+}
+
+function mapFribbelsElement(attribute) {
+  const normalized = String(attribute || "").toLowerCase();
+  const elementMap = {
+    fire: "Fire",
+    ice: "Ice",
+    wind: "Earth",
+    light: "Light",
+    dark: "Dark",
+  };
+  return elementMap[normalized] || attribute || "";
+}
+
+function normalizeFribbelsHeroes(raw) {
+  return Object.values(raw || {}).map((hero) => ({
+    id: hero._id || slugify(hero.name),
+    name: hero.name,
+    class: mapFribbelsRole(hero.role) || "Knight",
+    element: mapFribbelsElement(hero.attribute),
+    rarity: hero.rarity ?? null,
+    icon: hero.assets?.icon ?? "",
+    thumbnail: hero.assets?.thumbnail ?? "",
+  })).filter((hero) => hero.id && hero.name);
+}
+
+function normalizeFribbelsArtifacts(raw) {
+  return Object.values(raw || {}).map((artifact) => ({
+    id: artifact.code || slugify(artifact.name),
+    name: artifact.name,
+    class: mapFribbelsRole(artifact.role),
+    rarity: artifact.rarity ?? null,
+    code: artifact.code ?? "",
+    attack: artifact.stats?.attack ?? null,
+    health: artifact.stats?.health ?? null,
+    defense: artifact.stats?.defense ?? null,
+  })).filter((artifact) => artifact.id && artifact.name);
 }
 
 function slugify(value) {
@@ -165,7 +215,10 @@ async function initDb() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
       class TEXT NOT NULL,
-      element TEXT
+      element TEXT,
+      rarity INTEGER,
+      icon TEXT,
+      thumbnail TEXT
     );
   `);
 
@@ -173,7 +226,12 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS artifacts (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
-      class TEXT NOT NULL
+      class TEXT,
+      rarity INTEGER,
+      code TEXT,
+      attack INTEGER,
+      health INTEGER,
+      defense INTEGER
     );
   `);
 
@@ -209,30 +267,95 @@ async function initDb() {
     );
   `);
 
+  await ensureColumn(db, "heroes", "rarity", "INTEGER");
+  await ensureColumn(db, "heroes", "icon", "TEXT");
+  await ensureColumn(db, "heroes", "thumbnail", "TEXT");
+  await ensureColumn(db, "artifacts", "rarity", "INTEGER");
+  await ensureColumn(db, "artifacts", "code", "TEXT");
+  await ensureColumn(db, "artifacts", "attack", "INTEGER");
+  await ensureColumn(db, "artifacts", "health", "INTEGER");
+  await ensureColumn(db, "artifacts", "defense", "INTEGER");
+
   await seedMasterData(db);
+  await importBundledMasterData(db);
   return db;
 }
 
-async function seedMasterData(db) {
-  for (const hero of HERO_MASTER_DATA) {
-    await db.execute(
-      "INSERT OR IGNORE INTO heroes (id, name, class, element) VALUES (?, ?, ?, ?)",
-      [hero.id, hero.name, hero.class, hero.element]
-    );
+async function ensureColumn(db, tableName, columnName, columnType) {
+  try {
+    await db.execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType}`);
+  } catch {
+    // Column already exists. SQLite has no simple ADD COLUMN IF NOT EXISTS.
+  }
+}
+
+async function importBundledMasterData(db) {
+  try {
+    const heroResponse = await fetch("data/herodata.json");
+    if (heroResponse.ok) {
+      const rawHeroes = await heroResponse.json();
+      await upsertHeroes(db, normalizeFribbelsHeroes(rawHeroes));
+    }
+  } catch (error) {
+    console.warn("Bundled hero data not found or invalid.", error);
   }
 
-  for (const artifact of ARTIFACT_MASTER_DATA) {
+  try {
+    const artifactResponse = await fetch("data/artifactdata.json");
+    if (artifactResponse.ok) {
+      const rawArtifacts = await artifactResponse.json();
+      await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
+    }
+  } catch (error) {
+    console.warn("Bundled artifact data not found or invalid.", error);
+  }
+}
+
+async function upsertHeroes(db, heroes) {
+  for (const hero of heroes) {
     await db.execute(
-      "INSERT OR IGNORE INTO artifacts (id, name, class) VALUES (?, ?, ?)",
-      [artifact.id, artifact.name, artifact.class]
+      `INSERT INTO heroes (id, name, class, element, rarity, icon, thumbnail)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         class = excluded.class,
+         element = excluded.element,
+         rarity = excluded.rarity,
+         icon = excluded.icon,
+         thumbnail = excluded.thumbnail`,
+      [hero.id, hero.name, hero.class, hero.element, hero.rarity, hero.icon, hero.thumbnail]
     );
   }
+}
+
+async function upsertArtifacts(db, artifacts) {
+  for (const artifact of artifacts) {
+    await db.execute(
+      `INSERT INTO artifacts (id, name, class, rarity, code, attack, health, defense)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         class = excluded.class,
+         rarity = excluded.rarity,
+         code = excluded.code,
+         attack = excluded.attack,
+         health = excluded.health,
+         defense = excluded.defense`,
+      [artifact.id, artifact.name, artifact.class, artifact.rarity, artifact.code, artifact.attack, artifact.health, artifact.defense]
+    );
+  }
+}
+
+async function seedMasterData(db) {
+  await upsertHeroes(db, HERO_MASTER_DATA.map((hero) => ({ ...hero, rarity: null, icon: "", thumbnail: "" })));
+  await upsertArtifacts(db, ARTIFACT_MASTER_DATA.map((artifact) => ({ ...artifact, rarity: null, code: artifact.id, attack: null, health: null, defense: null })));
+
 }
 
 async function loadMasterData() {
   const db = await getDb();
-  const heroes = await db.select("SELECT id, name, class, element FROM heroes ORDER BY name ASC");
-  const artifacts = await db.select("SELECT id, name, class FROM artifacts ORDER BY name ASC");
+  const heroes = await db.select("SELECT id, name, class, element, rarity, icon, thumbnail FROM heroes ORDER BY name ASC");
+  const artifacts = await db.select("SELECT id, name, class, rarity, code, attack, health, defense FROM artifacts ORDER BY name ASC");
   return { heroes, artifacts };
 }
 
@@ -437,11 +560,85 @@ function SelectField({ label, value, onChange, options, placeholder }) {
   );
 }
 
+function SearchableSelect({ label, value, onChange, options, placeholder }) {
+  const selected = options.find((option) => option.value === value);
+  const [query, setQuery] = useState(selected?.label ?? "");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const nextSelected = options.find((option) => option.value === value);
+    setQuery(nextSelected?.label ?? "");
+  }, [value, options]);
+
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return options.slice(0, 50);
+    return options
+      .filter((option) => option.label.toLowerCase().includes(normalizedQuery) || option.searchText?.includes(normalizedQuery))
+      .slice(0, 50);
+  }, [options, query]);
+
+  return (
+    <div className="relative">
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+            if (!event.target.value) onChange("");
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+        />
+      </label>
+
+      {open && (
+        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-slate-500">No results</div>
+          ) : (
+            filtered.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option.value);
+                  setQuery(option.label);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100"
+              >
+                <span>{option.label}</span>
+                {option.meta && <span className="text-xs text-slate-400">{option.meta}</span>}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }) {
-  const heroOptions = heroes.map((item) => ({ value: item.id, label: `${item.name} · ${item.class}` }));
+  const heroOptions = heroes.map((item) => ({
+    value: item.id,
+    label: `${item.name} · ${item.class}${item.rarity ? ` · ${item.rarity}★` : ""}`,
+    meta: item.element || "",
+    searchText: `${item.name} ${item.class} ${item.element || ""}`.toLowerCase(),
+  }));
+
   const artifactOptions = artifacts
-    .filter((artifact) => artifact.class === hero.class)
-    .map((artifact) => ({ value: artifact.id, label: artifact.name }));
+    .filter((artifact) => !artifact.class || artifact.class === hero.class)
+    .map((artifact) => ({
+      value: artifact.id,
+      label: `${artifact.name}${artifact.rarity ? ` · ${artifact.rarity}★` : ""}`,
+      meta: artifact.class || "Universal",
+      searchText: `${artifact.name} ${artifact.class || "Universal"} ${artifact.rarity || ""}`.toLowerCase(),
+    }));
 
   const classOptions = CLASS_OPTIONS.map((item) => ({ value: item.name, label: item.name }));
   const classMeta = getClassMeta(hero.class);
@@ -490,10 +687,10 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <SelectField label="Hero database" value={hero.heroId} onChange={changeHero} options={heroOptions} placeholder="Select hero..." />
+        <SearchableSelect label="Hero database" value={hero.heroId} onChange={changeHero} options={heroOptions} placeholder="Search hero..." />
         <Field label="Custom hero name" value={hero.name} onChange={(value) => updateHero({ name: value, heroId: "" })} placeholder="e.g. Peira" />
         <SelectField label="Class" value={hero.class} onChange={changeClass} options={classOptions} />
-        <SelectField label={`Artifact (${hero.class})`} value={hero.artifactId} onChange={(value) => updateHero({ artifactId: value })} options={artifactOptions} placeholder="Select artifact..." />
+        <SearchableSelect label={`Artifact (${hero.class})`} value={hero.artifactId} onChange={(value) => updateHero({ artifactId: value })} options={artifactOptions} placeholder="Search artifact..." />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -510,10 +707,10 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
 
       <div className="mt-3">
         <Field
-          label="Speed note / future logic"
+          label="Additional Notes"
           value={hero.speedNote}
           onChange={(value) => updateHero({ speedNote: value })}
-          placeholder="e.g. opener, slower than Ran, speed contest, unknown"
+          placeholder="e.g. opener, slower than Ran, speed contest, unknown, artifact proc"
         />
       </div>
 
@@ -527,13 +724,13 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
                 key={setOption.name}
                 type="button"
                 onClick={() => toggleSet(setOption.name)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-medium transition ${
                   active
                     ? "border-slate-900 bg-slate-900 text-white shadow-sm"
                     : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
                 }`}
               >
-                <AppIcon meta={setOption} size={18} />
+                <AppIcon meta={setOption} size={28} />
                 {setOption.name}
               </button>
             );
@@ -620,8 +817,8 @@ function SummaryTable({ entry, artifactMaster, onCopyDiscord }) {
                   {hero.sets.length ? (
                     <div className="flex flex-wrap gap-1.5">
                       {hero.sets.map((setName) => (
-                        <span key={setName} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs">
-                          <AppIcon meta={getSetMeta(setName)} size={14} />{setName}
+                        <span key={setName} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-2.5 py-1.5 text-xs">
+                          <AppIcon meta={getSetMeta(setName)} size={22} />{setName}
                         </span>
                       ))}
                     </div>
@@ -659,7 +856,7 @@ export default function EpicSevenGwTrackerApp() {
         setHeroes(master.heroes.length ? master.heroes : HERO_MASTER_DATA);
         setArtifacts(master.artifacts.length ? master.artifacts : ARTIFACT_MASTER_DATA);
         await refreshList();
-        setStatus("SQLite database ready.");
+        setStatus(`SQLite database ready. Loaded ${master.heroes.length} heroes and ${master.artifacts.length} artifacts.`);
       } catch (error) {
         console.error(error);
         setStatus("SQLite could not start. Make sure this runs inside Tauri, not a normal browser.");
@@ -832,13 +1029,6 @@ export default function EpicSevenGwTrackerApp() {
                 Opponents are stored in local SQLite. JSON export/import is used for backups and sharing.
               </p>
               <p className="text-xs font-medium text-slate-600">{status}</p>
-            </section>
-
-            <section className="rounded-3xl bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-center gap-2"><ImageIcon size={17} /><h2 className="font-bold">Custom icons</h2></div>
-              <p className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
-                Add your own images under <b>public/icons/sets</b> and <b>public/icons/classes</b>. If an image is missing, the app uses a fallback symbol.
-              </p>
             </section>
 
             <section className="rounded-3xl bg-white p-5 shadow-sm">
