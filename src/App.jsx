@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Database from "@tauri-apps/plugin-sql";
 import {
   Plus,
@@ -911,6 +911,23 @@ export default function EpicSevenGwTrackerApp() {
   const [selectedId, setSelectedId] = useState(null);
   const [status, setStatus] = useState("Starting SQLite database...");
   const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsMenuRef = useRef(null);
+
+  useEffect(() => {
+  function handleClickOutside(event) {
+    if (!actionsMenuRef.current) return;
+
+    if (!actionsMenuRef.current.contains(event.target)) {
+      setActionsOpen(false);
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
 
   async function refreshList() {
     const opponents = await loadOpponents();
@@ -1115,7 +1132,7 @@ export default function EpicSevenGwTrackerApp() {
               </p>
             </div>
 
-            <div className="relative flex items-start gap-2">
+            <div ref={actionsMenuRef} className="relative flex items-start gap-2">
               <button
                 onClick={newEntry}
                 className="inline-flex items-center rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm hover:bg-slate-800"
