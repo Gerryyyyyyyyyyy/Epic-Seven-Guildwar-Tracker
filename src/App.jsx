@@ -135,7 +135,9 @@ function normalizeFribbelsHeroes(raw) {
 
 function normalizeFribbelsArtifacts(raw) {
   return Object.values(raw || {}).map((artifact) => ({
-    id: artifact.code || slugify(artifact.name),
+    // Use the name slug as the internal ID so it matches the old fallback IDs like "aurius".
+    // The Fribbels code is still stored separately in the code column.
+    id: slugify(artifact.name),
     name: artifact.name,
     class: mapFribbelsRole(artifact.role),
     rarity: artifact.rarity ?? null,
@@ -340,8 +342,7 @@ async function upsertArtifacts(db, artifacts) {
     await db.execute(
       `INSERT INTO artifacts (id, name, class, rarity, code, attack, health, defense)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
+       ON CONFLICT(name) DO UPDATE SET
          class = excluded.class,
          rarity = excluded.rarity,
          code = excluded.code,
@@ -1045,7 +1046,7 @@ export default function EpicSevenGwTrackerApp() {
       setStatus(`Imported ${normalizedArtifacts.length} artifacts into SQLite.`);
     } catch (error) {
       console.error(error);
-      setStatus("Artifact import failed. Please select the Fribbels artifactdata.json file.");
+      setStatus(`Artifact import failed: ${error.message || error}`);
     } finally {
       event.target.value = "";
     }
