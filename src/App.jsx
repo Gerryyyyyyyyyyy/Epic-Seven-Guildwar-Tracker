@@ -1,32 +1,129 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Database from "@tauri-apps/plugin-sql";
-import { Plus, Save, Search, Trash2, RotateCcw, Swords, Shield, Users, Database as DatabaseIcon, Download } from "lucide-react";
+import {
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  RotateCcw,
+  Swords,
+  Shield,
+  Users,
+  Download,
+  Upload,
+  Copy,
+  Image as ImageIcon,
+  FolderArchive,
+  Database as DatabaseIcon,
+} from "lucide-react";
 
 const DB_URL = "sqlite:e7_gw_tracker.db";
 
 const STAT_FIELDS = ["ATK", "DEF", "HP", "Speed", "EFF", "ER"];
 
+// Put your own images into these folders later:
+// public/icons/sets/immunity.png
+// public/icons/sets/counter.png
+// public/icons/classes/knight.png
+// public/icons/classes/warrior.png
+// In Tauri/Vite, files inside public/ are reachable as /icons/...
 const SET_OPTIONS = [
-  "Immunity",
-  "Counter",
-  "Riposte",
-  "Warfare",
-  "Pursuit",
-  "Protection",
-  "Injury",
+  { name: "Immunity", image: "/icons/sets/immunity.png", fallback: "🛡️" },
+  { name: "Counter", image: "/icons/sets/counter.png", fallback: "↩️" },
+  { name: "Riposte", image: "/icons/sets/riposte.png", fallback: "⚔️" },
+  { name: "Warfare", image: "/icons/sets/warfare.png", fallback: "🔥" },
+  { name: "Pursuit", image: "/icons/sets/pursuit.png", fallback: "🏹" },
+  { name: "Protection", image: "/icons/sets/protection.png", fallback: "🛡" },
+  { name: "Injury", image: "/icons/sets/injury.png", fallback: "🩸" },
 ];
 
 const CLASS_OPTIONS = [
-  "Knight",
-  "Warrior",
-  "Thief",
-  "Ranger",
-  "Mage",
-  "Soul Weaver",
+  { name: "Knight", image: "/icons/classes/knight.png", fallback: "🛡️" },
+  { name: "Warrior", image: "/icons/classes/warrior.png", fallback: "🪓" },
+  { name: "Thief", image: "/icons/classes/thief.png", fallback: "🗡️" },
+  { name: "Ranger", image: "/icons/classes/ranger.png", fallback: "🏹" },
+  { name: "Mage", image: "/icons/classes/mage.png", fallback: "🔮" },
+  { name: "Soul Weaver", image: "/icons/classes/soul-weaver.png", fallback: "✨" },
+];
+
+const HERO_MASTER_DATA = [
+  { id: "peira", name: "Peira", class: "Thief", element: "Ice" },
+  { id: "luna", name: "Luna", class: "Warrior", element: "Ice" },
+  { id: "yufine", name: "Yufine", class: "Warrior", element: "Earth" },
+  { id: "ilynav", name: "Ilynav", class: "Knight", element: "Fire" },
+  { id: "harunka", name: "Harunka", class: "Warrior", element: "Dark" },
+  { id: "mercedes", name: "Mercedes", class: "Mage", element: "Fire" },
+  { id: "ran", name: "Ran", class: "Thief", element: "Ice" },
+  { id: "conqueror-lilias", name: "Conqueror Lilias", class: "Warrior", element: "Dark" },
+  { id: "angel-of-light-angelica", name: "Angel of Light Angelica", class: "Mage", element: "Light" },
+  { id: "karina", name: "ae-KARINA", class: "Knight", element: "Ice" },
+];
+
+const ARTIFACT_MASTER_DATA = [
+  { id: "elbris", name: "Elbris Ritual Sword", class: "Knight" },
+  { id: "aurius", name: "Aurius", class: "Knight" },
+  { id: "adamant-shield", name: "Adamant Shield", class: "Knight" },
+  { id: "noble-oath", name: "Noble Oath", class: "Knight" },
+  { id: "holy-sacrifice", name: "Holy Sacrifice", class: "Knight" },
+  { id: "uberius-tooth", name: "Uberius's Tooth", class: "Warrior" },
+  { id: "sigurd-scythe", name: "Sigurd Scythe", class: "Warrior" },
+  { id: "draco-plate", name: "Draco Plate", class: "Warrior" },
+  { id: "merciless-glutton", name: "Merciless Glutton", class: "Warrior" },
+  { id: "creation-destruction", name: "Creation & Destruction", class: "Warrior" },
+  { id: "rhianna-luciella", name: "Rhianna & Luciella", class: "Thief" },
+  { id: "alexas-basket", name: "Alexa's Basket", class: "Thief" },
+  { id: "moonlight-dreamblade", name: "Moonlight Dreamblade", class: "Thief" },
+  { id: "shepherd-hollow", name: "Shepherd of the Hollow", class: "Thief" },
+  { id: "dust-devil", name: "Dust Devil", class: "Thief" },
+  { id: "guiding-light", name: "Guiding Light", class: "Ranger" },
+  { id: "song-of-stars", name: "Song of Stars", class: "Ranger" },
+  { id: "bloodstone", name: "Bloodstone", class: "Ranger" },
+  { id: "sashe-ithanes", name: "Sashe Ithanes", class: "Ranger" },
+  { id: "infinity-basket", name: "Infinity Basket", class: "Ranger" },
+  { id: "tagehel", name: "Tagehel's Ancient Book", class: "Mage" },
+  { id: "abyssal-crown", name: "Abyssal Crown", class: "Mage" },
+  { id: "eticas-scepter", name: "Etica's Scepter", class: "Mage" },
+  { id: "iela-violin", name: "Iela Violin", class: "Mage" },
+  { id: "necro-undine", name: "Necro & Undine", class: "Mage" },
+  { id: "rod-amaryllis", name: "Rod of Amaryllis", class: "Soul Weaver" },
+  { id: "celestine", name: "Celestine", class: "Soul Weaver" },
+  { id: "waters-origin", name: "Water's Origin", class: "Soul Weaver" },
+  { id: "idols-cheer", name: "Idol's Cheer", class: "Soul Weaver" },
+  { id: "shimadra-staff", name: "Shimadra Staff", class: "Soul Weaver" },
 ];
 
 function uid() {
   return crypto.randomUUID();
+}
+
+function slugify(value) {
+  return String(value || "unnamed")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "") || "unnamed";
+}
+
+function downloadTextFile(filename, content) {
+  const blob = new Blob([content], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function getClassMeta(className) {
+  return CLASS_OPTIONS.find((item) => item.name === className) ?? CLASS_OPTIONS[0];
+}
+
+function getSetMeta(setName) {
+  return SET_OPTIONS.find((item) => item.name === setName) ?? { name: setName, image: "", fallback: "•" };
+}
+
+function emptyStats() {
+  return { ATK: "", DEF: "", HP: "", Speed: "", EFF: "", ER: "" };
 }
 
 function blankHero() {
@@ -34,7 +131,7 @@ function blankHero() {
     heroId: "",
     name: "",
     class: "Knight",
-    stats: { ATK: "", DEF: "", HP: "", Speed: "", EFF: "", ER: "" },
+    stats: emptyStats(),
     sets: [],
     artifactId: "",
     speedNote: "",
@@ -42,12 +139,13 @@ function blankHero() {
 }
 
 function blankEntry() {
+  const now = new Date().toISOString();
   return {
     id: uid(),
     opponent: "",
     note: "",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     rounds: {
       R1: [blankHero(), blankHero(), blankHero()],
       R2: [blankHero(), blankHero(), blankHero()],
@@ -116,58 +214,18 @@ async function initDb() {
 }
 
 async function seedMasterData(db) {
-  const heroes = [
-    ["peira", "Peira", "Thief", "Ice"],
-    ["luna", "Luna", "Warrior", "Ice"],
-    ["yufine", "Yufine", "Warrior", "Earth"],
-    ["ilynav", "Ilynav", "Knight", "Fire"],
-    ["harunka", "Harunka", "Warrior", "Dark"],
-    ["mercedes", "Mercedes", "Mage", "Fire"],
-    ["ran", "Ran", "Thief", "Ice"],
-    ["conqueror-lilias", "Conqueror Lilias", "Warrior", "Dark"],
-    ["angel-of-light-angelica", "Angel of Light Angelica", "Mage", "Light"],
-    ["karina", "ae-KARINA", "Knight", "Ice"],
-  ];
-
-  const artifacts = [
-    ["elbris", "Elbris Ritual Sword", "Knight"],
-    ["aurius", "Aurius", "Knight"],
-    ["adamant-shield", "Adamant Shield", "Knight"],
-    ["noble-oath", "Noble Oath", "Knight"],
-    ["holy-sacrifice", "Holy Sacrifice", "Knight"],
-    ["uberius-tooth", "Uberius's Tooth", "Warrior"],
-    ["sigurd-scythe", "Sigurd Scythe", "Warrior"],
-    ["draco-plate", "Draco Plate", "Warrior"],
-    ["merciless-glutton", "Merciless Glutton", "Warrior"],
-    ["creation-destruction", "Creation & Destruction", "Warrior"],
-    ["rhianna-luciella", "Rhianna & Luciella", "Thief"],
-    ["alexas-basket", "Alexa's Basket", "Thief"],
-    ["moonlight-dreamblade", "Moonlight Dreamblade", "Thief"],
-    ["shepherd-hollow", "Shepherd of the Hollow", "Thief"],
-    ["dust-devil", "Dust Devil", "Thief"],
-    ["guiding-light", "Guiding Light", "Ranger"],
-    ["song-of-stars", "Song of Stars", "Ranger"],
-    ["bloodstone", "Bloodstone", "Ranger"],
-    ["sashe-ithanes", "Sashe Ithanes", "Ranger"],
-    ["infinity-basket", "Infinity Basket", "Ranger"],
-    ["tagehel", "Tagehel's Ancient Book", "Mage"],
-    ["abyssal-crown", "Abyssal Crown", "Mage"],
-    ["eticas-scepter", "Etica's Scepter", "Mage"],
-    ["iela-violin", "Iela Violin", "Mage"],
-    ["necro-undine", "Necro & Undine", "Mage"],
-    ["rod-amaryllis", "Rod of Amaryllis", "Soul Weaver"],
-    ["celestine", "Celestine", "Soul Weaver"],
-    ["waters-origin", "Water's Origin", "Soul Weaver"],
-    ["idols-cheer", "Idol's Cheer", "Soul Weaver"],
-    ["shimadra-staff", "Shimadra Staff", "Soul Weaver"],
-  ];
-
-  for (const hero of heroes) {
-    await db.execute("INSERT OR IGNORE INTO heroes (id, name, class, element) VALUES (?, ?, ?, ?)", hero);
+  for (const hero of HERO_MASTER_DATA) {
+    await db.execute(
+      "INSERT OR IGNORE INTO heroes (id, name, class, element) VALUES (?, ?, ?, ?)",
+      [hero.id, hero.name, hero.class, hero.element]
+    );
   }
 
-  for (const artifact of artifacts) {
-    await db.execute("INSERT OR IGNORE INTO artifacts (id, name, class) VALUES (?, ?, ?)", artifact);
+  for (const artifact of ARTIFACT_MASTER_DATA) {
+    await db.execute(
+      "INSERT OR IGNORE INTO artifacts (id, name, class) VALUES (?, ?, ?)",
+      [artifact.id, artifact.name, artifact.class]
+    );
   }
 }
 
@@ -180,10 +238,12 @@ async function loadMasterData() {
 
 async function loadOpponents() {
   const db = await getDb();
-  return await db.select("SELECT id, name AS opponent, note, created_at AS createdAt, updated_at AS updatedAt FROM opponents ORDER BY updated_at DESC");
+  return await db.select(
+    "SELECT id, name AS opponent, note, created_at AS createdAt, updated_at AS updatedAt FROM opponents ORDER BY updated_at DESC"
+  );
 }
 
-async function loadEntry(opponentId) {
+async function loadEntryFromDb(opponentId) {
   const db = await getDb();
 
   const opponents = await db.select(
@@ -220,7 +280,10 @@ async function loadEntry(opponentId) {
       artifactId: row.artifact_id ?? "",
       sets: JSON.parse(row.sets_json || "[]"),
     };
-    entry.rounds[row.round_key][row.slot_number - 1] = hero;
+
+    if (entry.rounds[row.round_key] && row.slot_number >= 1 && row.slot_number <= 3) {
+      entry.rounds[row.round_key][row.slot_number - 1] = hero;
+    }
   }
 
   return entry;
@@ -230,12 +293,13 @@ async function saveEntryToDb(entry) {
   const db = await getDb();
   const updatedAt = new Date().toISOString();
   const opponent = entry.opponent.trim() || "Unnamed opponent";
+  const createdAt = entry.createdAt || updatedAt;
 
   await db.execute(
     `INSERT INTO opponents (id, name, note, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET name = excluded.name, note = excluded.note, updated_at = excluded.updated_at`,
-    [entry.id, opponent, entry.note ?? "", entry.createdAt, updatedAt]
+    [entry.id, opponent, entry.note ?? "", createdAt, updatedAt]
   );
 
   await db.execute("DELETE FROM scout_entries WHERE opponent_id = ?", [entry.id]);
@@ -271,13 +335,72 @@ async function saveEntryToDb(entry) {
     }
   }
 
-  return { ...entry, opponent, updatedAt };
+  return { ...entry, opponent, createdAt, updatedAt };
 }
 
 async function deleteEntryFromDb(id) {
   const db = await getDb();
   await db.execute("DELETE FROM scout_entries WHERE opponent_id = ?", [id]);
   await db.execute("DELETE FROM opponents WHERE id = ?", [id]);
+}
+
+async function importEntriesToDb(entries) {
+  let imported = 0;
+  for (const entry of entries) {
+    if (entry?.id && entry?.rounds?.R1 && entry?.rounds?.R2) {
+      await saveEntryToDb(entry);
+      imported += 1;
+    }
+  }
+  return imported;
+}
+
+function AppIcon({ meta, size = 22 }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!meta?.image || failed) {
+    return (
+      <span style={{ width: size, height: size, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        {meta?.fallback ?? "•"}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={meta.image}
+      alt=""
+      onError={() => setFailed(true)}
+      style={{ width: size, height: size, objectFit: "contain", display: "inline-block" }}
+    />
+  );
+}
+
+function buildDiscordSummary(entry, artifactMaster) {
+  const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
+  const statLine = (hero) =>
+    `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${hero.stats.Speed || "?"} | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
+
+  const lines = [];
+  lines.push(`**${entry.opponent || "Unnamed opponent"}**`);
+  if (entry.note) lines.push(`_${entry.note}_`);
+  lines.push("");
+
+  for (const roundKey of ["R1", "R2"]) {
+    lines.push(`__${roundKey === "R1" ? "Round 1" : "Round 2"}__`);
+    entry.rounds[roundKey].forEach((hero, index) => {
+      const sets = hero.sets.length ? hero.sets.join(", ") : "?";
+      lines.push(
+        `${index + 1}. **${hero.name || "?"}** (${hero.class})\n` +
+          `   ${statLine(hero)}\n` +
+          `   Sets: ${sets}\n` +
+          `   Artifact: ${artifactName(hero.artifactId)}${hero.speedNote ? `\n   Speed note: ${hero.speedNote}` : ""}`
+      );
+    });
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
 }
 
 function Field({ label, value, onChange, placeholder = "" }) {
@@ -305,8 +428,8 @@ function SelectField({ label, value, onChange, options, placeholder }) {
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
-          <option key={option.value ?? option} value={option.value ?? option}>
-            {option.label ?? option}
+          <option key={option.value ?? option.name ?? option} value={option.value ?? option.name ?? option}>
+            {option.label ?? option.name ?? option}
           </option>
         ))}
       </select>
@@ -319,6 +442,9 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
   const artifactOptions = artifacts
     .filter((artifact) => artifact.class === hero.class)
     .map((artifact) => ({ value: artifact.id, label: artifact.name }));
+
+  const classOptions = CLASS_OPTIONS.map((item) => ({ value: item.name, label: item.name }));
+  const classMeta = getClassMeta(hero.class);
 
   const updateHero = (patch) => onHeroChange(roundKey, heroIndex, { ...hero, ...patch });
 
@@ -355,7 +481,10 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Hero {heroIndex + 1}</p>
-          <h3 className="text-lg font-semibold text-slate-900">{hero.name || "Unnamed Hero"}</h3>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+            <AppIcon meta={classMeta} />
+            <span>{hero.name || "Unnamed Hero"}</span>
+          </h3>
         </div>
         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{roundKey}</div>
       </div>
@@ -363,7 +492,7 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
       <div className="grid gap-3 md:grid-cols-2">
         <SelectField label="Hero database" value={hero.heroId} onChange={changeHero} options={heroOptions} placeholder="Select hero..." />
         <Field label="Custom hero name" value={hero.name} onChange={(value) => updateHero({ name: value, heroId: "" })} placeholder="e.g. Peira" />
-        <SelectField label="Class" value={hero.class} onChange={changeClass} options={CLASS_OPTIONS} />
+        <SelectField label="Class" value={hero.class} onChange={changeClass} options={classOptions} />
         <SelectField label={`Artifact (${hero.class})`} value={hero.artifactId} onChange={(value) => updateHero({ artifactId: value })} options={artifactOptions} placeholder="Select artifact..." />
       </div>
 
@@ -391,20 +520,21 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
       <div className="mt-4">
         <p className="mb-2 text-xs font-medium text-slate-500">Sets</p>
         <div className="flex flex-wrap gap-2">
-          {SET_OPTIONS.map((setName) => {
-            const active = hero.sets.includes(setName);
+          {SET_OPTIONS.map((setOption) => {
+            const active = hero.sets.includes(setOption.name);
             return (
               <button
-                key={setName}
+                key={setOption.name}
                 type="button"
-                onClick={() => toggleSet(setName)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                onClick={() => toggleSet(setOption.name)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                   active
                     ? "border-slate-900 bg-slate-900 text-white shadow-sm"
                     : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
                 }`}
               >
-                {setName}
+                <AppIcon meta={setOption} size={18} />
+                {setOption.name}
               </button>
             );
           })}
@@ -423,7 +553,7 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, onHeroChange
         </div>
         <div>
           <h2 className="text-xl font-bold text-slate-900">Round {roundKey === "R1" ? "1" : "2"}</h2>
-          <p className="text-sm text-slate-500">Three heroes with stats, sets, and class-based artifact selection.</p>
+          <p className="text-sm text-slate-500">Three heroes with stats, custom set icons, and class-based artifact selection.</p>
         </div>
       </div>
 
@@ -444,12 +574,22 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, onHeroChange
   );
 }
 
-function SummaryTable({ entry, artifactMaster }) {
+function SummaryTable({ entry, artifactMaster, onCopyDiscord }) {
   const rows = ["R1", "R2"].flatMap((roundKey) => entry.rounds[roundKey].map((hero, index) => ({ roundKey, index, hero })));
   const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "—";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <div>
+          <h2 className="font-bold text-slate-900">Summary</h2>
+          <p className="text-sm text-slate-500">Copy the full defense as Discord-ready text.</p>
+        </div>
+        <button onClick={onCopyDiscord} className="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
+          <Copy className="mr-2 h-4 w-4" /> Copy for Discord
+        </button>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -472,9 +612,21 @@ function SummaryTable({ entry, artifactMaster }) {
               <tr key={`${roundKey}-summary-${index}`} className="text-slate-700">
                 <td className="px-4 py-3 font-semibold text-slate-900">{roundKey}</td>
                 <td className="px-4 py-3">{hero.name || "—"}</td>
-                <td className="px-4 py-3">{hero.class}</td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-2"><AppIcon meta={getClassMeta(hero.class)} size={18} />{hero.class}</span>
+                </td>
                 {STAT_FIELDS.map((stat) => <td key={stat} className="px-4 py-3">{hero.stats[stat] || "—"}</td>)}
-                <td className="px-4 py-3">{hero.sets.length ? hero.sets.join(", ") : "—"}</td>
+                <td className="px-4 py-3">
+                  {hero.sets.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {hero.sets.map((setName) => (
+                        <span key={setName} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs">
+                          <AppIcon meta={getSetMeta(setName)} size={14} />{setName}
+                        </span>
+                      ))}
+                    </div>
+                  ) : "—"}
+                </td>
                 <td className="px-4 py-3">{artifactName(hero.artifactId)}</td>
               </tr>
             ))}
@@ -485,14 +637,14 @@ function SummaryTable({ entry, artifactMaster }) {
   );
 }
 
-export default function App() {
+export default function EpicSevenGwTrackerApp() {
   const [entry, setEntry] = useState(blankEntry());
   const [savedEntries, setSavedEntries] = useState([]);
-  const [heroes, setHeroes] = useState([]);
-  const [artifacts, setArtifacts] = useState([]);
+  const [heroes, setHeroes] = useState(HERO_MASTER_DATA);
+  const [artifacts, setArtifacts] = useState(ARTIFACT_MASTER_DATA);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
-  const [status, setStatus] = useState("Starting database...");
+  const [status, setStatus] = useState("Starting SQLite database...");
 
   async function refreshList() {
     const opponents = await loadOpponents();
@@ -504,13 +656,13 @@ export default function App() {
       try {
         await initDb();
         const master = await loadMasterData();
-        setHeroes(master.heroes);
-        setArtifacts(master.artifacts);
+        setHeroes(master.heroes.length ? master.heroes : HERO_MASTER_DATA);
+        setArtifacts(master.artifacts.length ? master.artifacts : ARTIFACT_MASTER_DATA);
         await refreshList();
         setStatus("SQLite database ready.");
       } catch (error) {
         console.error(error);
-        setStatus("Database failed to start. Run inside Tauri, not a normal browser.");
+        setStatus("SQLite could not start. Make sure this runs inside Tauri, not a normal browser.");
       }
     })();
   }, []);
@@ -527,54 +679,113 @@ export default function App() {
       updatedAt: new Date().toISOString(),
       rounds: {
         ...current.rounds,
-        [roundKey]: current.rounds[roundKey].map((hero, index) => (index === heroIndex ? nextHero : hero)),
+        [roundKey]: current.rounds[roundKey].map((hero, index) => index === heroIndex ? nextHero : hero),
       },
     }));
-  };
-
-  const saveEntry = async () => {
-    const saved = await saveEntryToDb(entry);
-    setEntry(saved);
-    setSelectedId(saved.id);
-    await refreshList();
-    setStatus(`Saved: ${saved.opponent}`);
-  };
-
-  const loadSelectedEntry = async (item) => {
-    const loaded = await loadEntry(item.id);
-    if (loaded) {
-      setEntry(loaded);
-      setSelectedId(item.id);
-      setStatus(`Loaded: ${loaded.opponent}`);
-    }
-  };
-
-  const deleteEntry = async (id) => {
-    await deleteEntryFromDb(id);
-    await refreshList();
-    if (selectedId === id) {
-      setEntry(blankEntry());
-      setSelectedId(null);
-    }
-    setStatus("Entry deleted.");
   };
 
   const newEntry = () => {
     setEntry(blankEntry());
     setSelectedId(null);
-    setStatus("New opponent created.");
+    setStatus("New opponent created. Remember to save it.");
   };
 
-  const exportCurrentJson = () => {
-    const data = JSON.stringify(entry, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${entry.opponent || "e7-entry"}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    setStatus("Current entry exported as JSON.");
+  const saveEntry = async () => {
+    try {
+      const saved = await saveEntryToDb(entry);
+      setEntry(saved);
+      setSelectedId(saved.id);
+      await refreshList();
+      setStatus(`Saved to SQLite: ${saved.opponent}`);
+    } catch (error) {
+      console.error(error);
+      setStatus("Save failed. SQLite is not available.");
+    }
+  };
+
+  const loadEntry = async (item) => {
+    try {
+      const loaded = await loadEntryFromDb(item.id);
+      if (!loaded) return;
+      setEntry(loaded);
+      setSelectedId(item.id);
+      setStatus(`Loaded: ${loaded.opponent}`);
+    } catch (error) {
+      console.error(error);
+      setStatus("Load failed.");
+    }
+  };
+
+  const deleteEntry = async (id) => {
+    try {
+      await deleteEntryFromDb(id);
+      await refreshList();
+      if (selectedId === id) {
+        setEntry(blankEntry());
+        setSelectedId(null);
+      }
+      setStatus("Entry deleted from SQLite.");
+    } catch (error) {
+      console.error(error);
+      setStatus("Delete failed.");
+    }
+  };
+
+  const exportCurrentEntry = () => {
+    const safeName = slugify(entry.opponent || "unnamed-opponent");
+    const date = new Date().toISOString().slice(0, 10);
+    const filename = `e7-scouts__opponents__${safeName}__${date}-${safeName}.json`;
+    downloadTextFile(filename, JSON.stringify(entry, null, 2));
+    setStatus("Current entry exported as JSON. Filename mirrors the planned folder structure.");
+  };
+
+  const exportAllEntries = async () => {
+    try {
+      const fullEntries = [];
+      for (const item of savedEntries) {
+        const full = await loadEntryFromDb(item.id);
+        if (full) fullEntries.push(full);
+      }
+
+      const payload = {
+        app: "Epic Seven GW Tracker",
+        version: 4,
+        exportedAt: new Date().toISOString(),
+        plannedFolderStructure: "e7-scouts/opponents/<opponent>/<date>-<opponent>.json",
+        savedEntries: fullEntries,
+      };
+
+      const date = new Date().toISOString().slice(0, 10);
+      downloadTextFile(`e7-scouts__backups__backup-${date}.json`, JSON.stringify(payload, null, 2));
+      setStatus("Full SQLite backup exported as JSON.");
+    } catch (error) {
+      console.error(error);
+      setStatus("Backup export failed.");
+    }
+  };
+
+  const importJson = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const importedEntries = Array.isArray(parsed.savedEntries) ? parsed.savedEntries : [parsed];
+      const imported = await importEntriesToDb(importedEntries);
+      await refreshList();
+      setStatus(`Imported ${imported} entry/entries into SQLite.`);
+    } catch (error) {
+      console.error(error);
+      setStatus("Import failed. Please select a valid exported JSON file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const copyDiscord = async () => {
+    await navigator.clipboard.writeText(buildDiscordSummary(entry, artifacts));
+    setStatus("Discord summary copied to clipboard.");
   };
 
   return (
@@ -588,14 +799,19 @@ export default function App() {
               </div>
               <h1 className="text-3xl font-black tracking-tight text-slate-950 md:text-5xl">Defense Scout Interface</h1>
               <p className="mt-3 max-w-2xl text-slate-500">
-                Tauri-ready desktop app with local SQLite storage, two rounds, three heroes per round, class-based artifacts, clickable sets, and scalable master data.
+                SQLite desktop version with custom image icons, better save/load flow, JSON import/export, and Discord copy output.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <button onClick={newEntry} className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><Plus className="mr-2 h-4 w-4" /> New opponent</button>
-              <button onClick={exportCurrentJson} className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><Download className="mr-2 h-4 w-4" /> Export entry</button>
-              <button onClick={saveEntry} className="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800"><Save className="mr-2 h-4 w-4" /> Save</button>
+              <button onClick={saveEntry} className="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800"><Save className="mr-2 h-4 w-4" /> Save to SQLite</button>
+              <button onClick={exportCurrentEntry} className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><Download className="mr-2 h-4 w-4" /> Export entry</button>
+              <button onClick={exportAllEntries} className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><FolderArchive className="mr-2 h-4 w-4" /> Export backup</button>
+              <label className="inline-flex cursor-pointer items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50">
+                <Upload className="mr-2 h-4 w-4" /> Import JSON
+                <input type="file" accept="application/json" onChange={importJson} className="hidden" />
+              </label>
             </div>
           </div>
         </header>
@@ -613,9 +829,16 @@ export default function App() {
             <section className="rounded-3xl bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center gap-2"><DatabaseIcon size={17} /><h2 className="font-bold">SQLite database</h2></div>
               <p className="mb-3 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
-                Data is stored locally in SQLite. This is ready for packaging as a Windows .exe through Tauri.
+                Opponents are stored in local SQLite. JSON export/import is used for backups and sharing.
               </p>
               <p className="text-xs font-medium text-slate-600">{status}</p>
+            </section>
+
+            <section className="rounded-3xl bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center gap-2"><ImageIcon size={17} /><h2 className="font-bold">Custom icons</h2></div>
+              <p className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
+                Add your own images under <b>public/icons/sets</b> and <b>public/icons/classes</b>. If an image is missing, the app uses a fallback symbol.
+              </p>
             </section>
 
             <section className="rounded-3xl bg-white p-5 shadow-sm">
@@ -628,12 +851,12 @@ export default function App() {
                 ) : (
                   filteredEntries.map((item) => (
                     <div key={item.id} className={`rounded-2xl border p-3 transition ${selectedId === item.id ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white"}`}>
-                      <button type="button" onClick={() => loadSelectedEntry(item)} className="w-full text-left">
+                      <button type="button" onClick={() => loadEntry(item)} className="w-full text-left">
                         <p className="font-semibold text-slate-900">{item.opponent}</p>
                         <p className="text-xs text-slate-500">Updated: {new Date(item.updatedAt).toLocaleString()}</p>
                       </button>
                       <div className="mt-2 flex gap-2">
-                        <button onClick={() => loadSelectedEntry(item)} className="inline-flex h-8 items-center rounded-xl border border-slate-200 px-2 text-xs"><RotateCcw className="mr-1 h-3 w-3" /> Load</button>
+                        <button onClick={() => loadEntry(item)} className="inline-flex h-8 items-center rounded-xl border border-slate-200 px-2 text-xs"><RotateCcw className="mr-1 h-3 w-3" /> Load</button>
                         <button onClick={() => deleteEntry(item.id)} className="inline-flex h-8 items-center rounded-xl border border-slate-200 px-2 text-xs text-red-600"><Trash2 className="mr-1 h-3 w-3" /> Delete</button>
                       </div>
                     </div>
@@ -646,14 +869,7 @@ export default function App() {
           <div className="space-y-6">
             <RoundPanel roundKey="R1" heroes={entry.rounds.R1} heroMaster={heroes} artifactMaster={artifacts} onHeroChange={updateHero} />
             <RoundPanel roundKey="R2" heroes={entry.rounds.R2} heroMaster={heroes} artifactMaster={artifacts} onHeroChange={updateHero} />
-
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Summary</h2>
-                <p className="text-sm text-slate-500">Quick overview for checking the whole defense.</p>
-              </div>
-              <SummaryTable entry={entry} artifactMaster={artifacts} />
-            </section>
+            <SummaryTable entry={entry} artifactMaster={artifacts} onCopyDiscord={copyDiscord} />
           </div>
         </div>
       </div>
