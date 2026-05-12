@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useMemo, useState } from "react";
 import Database from "@tauri-apps/plugin-sql";
 import {
@@ -351,6 +352,14 @@ async function upsertHeroes(db, heroes) {
       [hero.id, hero.name, hero.class, hero.element, hero.rarity, hero.icon, hero.thumbnail]
     );
   }
+}
+
+async function saveJsonNextToExe(filename, payload) {
+  const content = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  return await invoke("save_json_next_to_exe", {
+    filename,
+    content,
+  });
 }
 
 async function upsertArtifacts(db, artifacts) {
@@ -977,13 +986,19 @@ export default function EpicSevenGwTrackerApp() {
     }
   };
 
-  const exportCurrentEntry = () => {
+  const exportCurrentEntry = async () => {
+  try {
     const safeName = slugify(entry.opponent || "unnamed-opponent");
     const date = new Date().toISOString().slice(0, 10);
-    const filename = `e7-scouts__opponents__${safeName}__${date}-${safeName}.json`;
-    downloadTextFile(filename, JSON.stringify(entry, null, 2));
-    setStatus("Current entry exported as JSON. Filename mirrors the planned folder structure.");
-  };
+    const filename = `${date}-${safeName}.json`;
+
+    const savedPath = await saveJsonNextToExe(filename, entry);
+    setStatus(`Current entry saved: ${savedPath}`);
+  } catch (error) {
+    console.error(error);
+    setStatus(`Export failed: ${error.message || error}`);
+  }
+};
 
   const exportAllEntries = async () => {
     try {
