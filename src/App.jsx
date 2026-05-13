@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
@@ -782,6 +781,134 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
   );
 }
 
+function parseNumberInput(value) {
+  const match = String(value || "").replace(",", ".").match(/\d+(\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function calculateEnemySpeed(mySpeedRaw, enemyCrRaw, mode) {
+  const mySpeed = parseNumberInput(mySpeedRaw);
+  const enemyCr = parseNumberInput(enemyCrRaw);
+
+  if (!Number.isFinite(mySpeed) || mySpeed <= 0) {
+    return {
+      valid: false,
+      message: "Enter your unit speed.",
+    };
+  }
+
+  if (!Number.isFinite(enemyCr) || enemyCr < 0) {
+    return {
+      valid: false,
+      message: "Enter enemy CR percentage.",
+    };
+  }
+
+  const crMultiplier = mode === "second" ? 1 + enemyCr / 100 : enemyCr / 100;
+  const exactEnemySpeed = mySpeed * crMultiplier;
+
+  return {
+    valid: true,
+    mySpeed,
+    enemyCr,
+    mode,
+    crMultiplier,
+    exactEnemySpeed,
+    enemySpeedRounded: Math.round(exactEnemySpeed),
+    enemySpeedFloor: Math.floor(exactEnemySpeed),
+    enemySpeedCeil: Math.ceil(exactEnemySpeed),
+  };
+}
+
+function SpeedCalculator({ roundKey }) {
+  const [mySpeed, setMySpeed] = useState("");
+  const [enemyCr, setEnemyCr] = useState("");
+  const [mode, setMode] = useState("first");
+
+  const result = useMemo(
+    () => calculateEnemySpeed(mySpeed, enemyCr, mode),
+    [mySpeed, enemyCr, mode]
+  );
+
+  const formulaText =
+    mode === "second"
+      ? "Enemy speed = my speed × (100% + enemy current CR%)"
+      : "Enemy speed = my speed × enemy current CR%";
+
+  const exampleText =
+    mode === "second"
+      ? "Example: My 250 speed unit moves second. Enemy already moved and is now at 20% CR → 250 × 1.20 = 300 enemy speed."
+      : "Example: My 300 speed unit moves first. Enemy is at 85% CR → 300 × 0.85 = 255 enemy speed.";
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+      <div className="mb-4 flex flex-col gap-1">
+        <h3 className="font-bold text-slate-100">
+          Speed Calculator · {roundKey === "R1" ? "Round 1" : "Round 2"}
+        </h3>
+        <p className="text-xs text-slate-400">
+          Estimate enemy speed from CR position.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr]">
+        <Field
+          label="My unit speed"
+          value={mySpeed}
+          onChange={setMySpeed}
+          placeholder="e.g. 300"
+        />
+
+        <Field
+          label="Enemy CR %"
+          value={enemyCr}
+          onChange={setEnemyCr}
+          placeholder={mode === "second" ? "e.g. 20" : "e.g. 85"}
+        />
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-400">
+            Situation
+          </span>
+          <select
+            value={mode}
+            onChange={(event) => setMode(event.target.value)}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
+          >
+            <option value="first">I go first</option>
+            <option value="second">I go second / enemy already moved</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+        {!result.valid ? (
+          <p className="text-sm text-slate-500">{result.message}</p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-slate-400">{formulaText}</p>
+
+            <p className="text-2xl font-black text-slate-50">
+              Estimated enemy speed:{" "}
+              <span className="text-indigo-400">
+                {result.enemySpeedRounded}
+              </span>
+            </p>
+
+            <p className="text-xs text-slate-500">
+              Exact: {result.exactEnemySpeed.toFixed(2)} · Range:{" "}
+              {result.enemySpeedFloor}–{result.enemySpeedCeil} · Multiplier:{" "}
+              {result.crMultiplier.toFixed(2)}x
+            </p>
+
+            <p className="text-xs text-slate-500">{exampleText}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, onRoundNoteChange, onHeroChange }) {
   return (
     <section className="space-y-4">
@@ -801,6 +928,8 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, o
         onChange={(value) => onRoundNoteChange(roundKey, value)}
         placeholder="Optional note for this team"
       />
+
+      <SpeedCalculator roundKey={roundKey} />
 
       <div className="grid gap-3 xl:grid-cols-3">
         {heroes.map((hero, index) => (
