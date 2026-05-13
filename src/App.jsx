@@ -491,38 +491,52 @@ function AppIcon({ meta, size = 22 }) {
 }
 
 function buildDiscordSummary(entry, artifactMaster) {
-  const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
+  const artifactName = (artifactId) =>
+    artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
 
   const statLine = (hero) =>
-    `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${hero.stats.Speed || "?"} | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
+    `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${
+      hero.stats.Speed || "?"
+    } | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
 
   const lines = [];
 
-  if (entry.opponent) lines.push(entry.opponent);
-  if (entry.note) lines.push(`Note: ${entry.note}`);
-  if (entry.opponent || entry.note) lines.push("");
+  if (entry.opponent) {
+    lines.push(entry.opponent);
+  }
+
+  if (entry.note) {
+    lines.push(`Note: ${entry.note}`);
+  }
+
+  if (entry.opponent || entry.note) {
+    lines.push("");
+  }
 
   for (const roundKey of ["R1", "R2"]) {
     lines.push(roundKey === "R1" ? "Round 1" : "Round 2");
 
     const roundNote = entry.roundNotes?.[roundKey] ?? "";
-    if (roundNote) lines.push(`Team note: ${roundNote}`);
+    if (roundNote) {
+      lines.push(`Team note: ${roundNote}`);
+    }
 
     lines.push("");
-    
-    entry.rounds[roundKey].forEach((hero) => {
+
+    entry.rounds[roundKey].forEach((hero, index) => {
       const normalizedHero = normalizeHeroEntry(hero);
       const sets = normalizedHero.sets.length ? normalizedHero.sets.join(", ") : "?";
       const artifact = artifactName(normalizedHero.artifactId);
 
       lines.push(`${index + 1}. **${normalizedHero.name || "?"}**`);
-      lines.push(`${statLine(normalizedHero)}`);
+      lines.push(statLine(normalizedHero));
       lines.push(`**Sets:** ${sets}`);
       lines.push(`**Artifact:** ${artifact}`);
 
       if (normalizedHero.additionalNotes) {
         lines.push(`Additional note: ${normalizedHero.additionalNotes}`);
       }
+
       lines.push("");
     });
   }
