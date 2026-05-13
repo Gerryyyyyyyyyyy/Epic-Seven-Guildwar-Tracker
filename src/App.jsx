@@ -1,25 +1,13 @@
-import { invoke } from "@tauri-apps/api/core";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import {
-  Plus,
-  Save,
-  Search,
-  Trash2,
-  RotateCcw,
-  Swords,
-  Shield,
-  Users,
-  Download,
-  Upload,
-  Copy,
-  FolderArchive,
-  MoreVertical,
-  Database as DatabaseIcon,
+  Plus, Save, Search, Trash2, RotateCcw, Swords, Shield, Users,
+  Download, Upload, Copy, FolderArchive, MoreVertical, Database as DatabaseIcon,
 } from "lucide-react";
 
 const DB_URL = "sqlite:e7_gw_tracker.db";
-
 const STAT_FIELDS = ["ATK", "DEF", "HP", "Speed", "EFF", "ER"];
 
 const SET_OPTIONS = [
@@ -30,6 +18,7 @@ const SET_OPTIONS = [
   { name: "Pursuit", image: "icons/sets/pursuit.png", fallback: "🏹" },
   { name: "Protection", image: "icons/sets/protection.png", fallback: "🛡" },
   { name: "Injury", image: "icons/sets/injury.png", fallback: "🩸" },
+  { name: "Lifesteal", image: "icons/sets/lifesteal.png", fallback: "💚" },
 ];
 
 const CLASS_OPTIONS = [
@@ -44,47 +33,13 @@ const CLASS_OPTIONS = [
 const HERO_MASTER_DATA = [
   { id: "peira", name: "Peira", class: "Thief", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
   { id: "luna", name: "Luna", class: "Warrior", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
-  { id: "yufine", name: "Yufine", class: "Warrior", element: "Earth", rarity: 5, icon: "", thumbnail: "" },
-  { id: "ilynav", name: "Ilynav", class: "Knight", element: "Fire", rarity: 5, icon: "", thumbnail: "" },
-  { id: "arunka", name: "Arunka", class: "Warrior", element: "Earth", rarity: 5, icon: "", thumbnail: "" },
-  { id: "mercedes", name: "Mercedes", class: "Mage", element: "Fire", rarity: 4, icon: "", thumbnail: "" },
   { id: "ran", name: "Ran", class: "Thief", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
-  { id: "conqueror-lilias", name: "Conqueror Lilias", class: "Warrior", element: "Dark", rarity: 5, icon: "", thumbnail: "" },
-  { id: "angel-of-light-angelica", name: "Angel of Light Angelica", class: "Mage", element: "Light", rarity: 4, icon: "", thumbnail: "" },
-  { id: "ae-karina", name: "ae-KARINA", class: "Knight", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
 ];
 
 const ARTIFACT_MASTER_DATA = [
-  { id: "elbris-ritual-sword", name: "Elbris Ritual Sword", class: "Knight", rarity: 5, code: "", attack: null, health: null, defense: null },
   { id: "aurius", name: "Aurius", class: "Knight", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "adamant-shield", name: "Adamant Shield", class: "Knight", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "noble-oath", name: "Noble Oath", class: "Knight", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "holy-sacrifice", name: "Holy Sacrifice", class: "Knight", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "uberiuss-tooth", name: "Uberius's Tooth", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "sigurd-scythe", name: "Sigurd Scythe", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "draco-plate", name: "Draco Plate", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "merciless-glutton", name: "Merciless Glutton", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "creation-destruction", name: "Creation & Destruction", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "rhianna-luciella", name: "Rhianna & Luciella", class: "Thief", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "alexas-basket", name: "Alexa's Basket", class: "Thief", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "moonlight-dreamblade", name: "Moonlight Dreamblade", class: "Thief", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "shepherd-of-the-hollow", name: "Shepherd of the Hollow", class: "Thief", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "dust-devil", name: "Dust Devil", class: "Thief", rarity: 4, code: "", attack: null, health: null, defense: null },
+  { id: "proof-of-valor", name: "Proof of Valor", class: "", rarity: 5, code: "", attack: null, health: null, defense: null },
   { id: "guiding-light", name: "Guiding Light", class: "Ranger", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "song-of-stars", name: "Song of Stars", class: "Ranger", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "bloodstone", name: "Bloodstone", class: "Ranger", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "sashe-ithanes", name: "Sashe Ithanes", class: "Ranger", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "infinity-basket", name: "Infinity Basket", class: "Ranger", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "tagehels-ancient-book", name: "Tagehel's Ancient Book", class: "Mage", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "abyssal-crown", name: "Abyssal Crown", class: "Mage", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "eticas-scepter", name: "Etica's Scepter", class: "Mage", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "iela-violin", name: "Iela Violin", class: "Mage", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "necro-undine", name: "Necro & Undine", class: "Mage", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "rod-of-amaryllis", name: "Rod of Amaryllis", class: "Soul Weaver", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "celestine", name: "Celestine", class: "Soul Weaver", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "waters-origin", name: "Water's Origin", class: "Soul Weaver", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "idols-cheer", name: "Idol's Cheer", class: "Soul Weaver", rarity: 5, code: "", attack: null, health: null, defense: null },
-  { id: "shimadra-staff", name: "Shimadra Staff", class: "Soul Weaver", rarity: 5, code: "", attack: null, health: null, defense: null },
 ];
 
 function uid() {
@@ -92,28 +47,15 @@ function uid() {
 }
 
 function slugify(value) {
-  return (
-    String(value || "unnamed")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)+/g, "") || "unnamed"
-  );
-}
-
-function downloadTextFile(filename, content) {
-  const blob = new Blob([content], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  return String(value || "unnamed")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "") || "unnamed";
 }
 
 function mapFribbelsRole(role) {
-  const normalized = String(role || "").toLowerCase();
-  const roleMap = {
+  const map = {
     warrior: "Warrior",
     knight: "Knight",
     assassin: "Thief",
@@ -121,19 +63,12 @@ function mapFribbelsRole(role) {
     mage: "Mage",
     manauser: "Soul Weaver",
   };
-  return roleMap[normalized] || "";
+  return map[String(role || "").toLowerCase()] || "";
 }
 
 function mapFribbelsElement(attribute) {
-  const normalized = String(attribute || "").toLowerCase();
-  const elementMap = {
-    fire: "Fire",
-    ice: "Ice",
-    wind: "Earth",
-    light: "Light",
-    dark: "Dark",
-  };
-  return elementMap[normalized] || attribute || "";
+  const map = { fire: "Fire", ice: "Ice", wind: "Earth", light: "Light", dark: "Dark" };
+  return map[String(attribute || "").toLowerCase()] || attribute || "";
 }
 
 function normalizeFribbelsHeroes(raw) {
@@ -216,6 +151,7 @@ function blankEntry() {
     note: "",
     createdAt: now,
     updatedAt: now,
+    roundNotes: { R1: "", R2: "" },
     rounds: {
       R1: [blankHero(), blankHero(), blankHero()],
       R2: [blankHero(), blankHero(), blankHero()],
@@ -228,9 +164,7 @@ async function getDb() {
     return await Database.load(DB_URL);
   } catch (error) {
     console.error("SQLite load failed:", error);
-    throw new Error(
-      "SQLite could not be loaded. This usually means the app is not running inside Tauri, the SQL plugin is missing, or SQL permissions are not configured."
-    );
+    throw new Error("SQLite could not be loaded. Check Tauri SQL plugin and permissions.");
   }
 }
 
@@ -275,6 +209,8 @@ async function initDb() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       note TEXT,
+      round1_note TEXT,
+      round2_note TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -310,6 +246,8 @@ async function initDb() {
   await ensureColumn(db, "artifacts", "attack", "INTEGER");
   await ensureColumn(db, "artifacts", "health", "INTEGER");
   await ensureColumn(db, "artifacts", "defense", "INTEGER");
+  await ensureColumn(db, "opponents", "round1_note", "TEXT");
+  await ensureColumn(db, "opponents", "round2_note", "TEXT");
 
   await seedMasterData(db);
   await importBundledMasterData(db);
@@ -322,7 +260,7 @@ async function fetchBundledJson(paths) {
       const response = await fetch(path);
       if (response.ok) return await response.json();
     } catch {
-      // Try next path.
+      // try next
     }
   }
   return null;
@@ -330,14 +268,10 @@ async function fetchBundledJson(paths) {
 
 async function importBundledMasterData(db) {
   const rawHeroes = await fetchBundledJson(["./data/herodata.json", "data/herodata.json", "/data/herodata.json"]);
-  if (rawHeroes) {
-    await upsertHeroes(db, normalizeFribbelsHeroes(rawHeroes));
-  }
+  if (rawHeroes) await upsertHeroes(db, normalizeFribbelsHeroes(rawHeroes));
 
   const rawArtifacts = await fetchBundledJson(["./data/artifactdata.json", "data/artifactdata.json", "/data/artifactdata.json"]);
-  if (rawArtifacts) {
-    await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
-  }
+  if (rawArtifacts) await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
 }
 
 async function upsertHeroes(db, heroes) {
@@ -389,15 +323,14 @@ async function loadMasterData() {
 async function loadOpponents() {
   const db = await getDb();
   return await db.select(
-    "SELECT id, name AS opponent, note, created_at AS createdAt, updated_at AS updatedAt FROM opponents ORDER BY updated_at DESC"
+    "SELECT id, name AS opponent, note, round1_note AS round1Note, round2_note AS round2Note, created_at AS createdAt, updated_at AS updatedAt FROM opponents ORDER BY updated_at DESC"
   );
 }
 
 async function loadEntryFromDb(opponentId) {
   const db = await getDb();
-
   const opponents = await db.select(
-    "SELECT id, name AS opponent, note, created_at AS createdAt, updated_at AS updatedAt FROM opponents WHERE id = ?",
+    "SELECT id, name AS opponent, note, round1_note AS round1Note, round2_note AS round2Note, created_at AS createdAt, updated_at AS updatedAt FROM opponents WHERE id = ?",
     [opponentId]
   );
 
@@ -407,7 +340,14 @@ async function loadEntryFromDb(opponentId) {
 
   const entry = {
     ...opponents[0],
-    rounds: { R1: [blankHero(), blankHero(), blankHero()], R2: [blankHero(), blankHero(), blankHero()] },
+    roundNotes: {
+      R1: opponents[0].round1Note ?? "",
+      R2: opponents[0].round2Note ?? "",
+    },
+    rounds: {
+      R1: [blankHero(), blankHero(), blankHero()],
+      R2: [blankHero(), blankHero(), blankHero()],
+    },
   };
 
   for (const row of rows) {
@@ -443,10 +383,23 @@ async function saveEntryToDb(entry) {
   const createdAt = entry.createdAt || updatedAt;
 
   await db.execute(
-    `INSERT INTO opponents (id, name, note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET name = excluded.name, note = excluded.note, updated_at = excluded.updated_at`,
-    [entry.id, opponent, entry.note ?? "", createdAt, updatedAt]
+    `INSERT INTO opponents (id, name, note, round1_note, round2_note, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       note = excluded.note,
+       round1_note = excluded.round1_note,
+       round2_note = excluded.round2_note,
+       updated_at = excluded.updated_at`,
+    [
+      entry.id,
+      opponent,
+      entry.note ?? "",
+      entry.roundNotes?.R1 ?? "",
+      entry.roundNotes?.R2 ?? "",
+      createdAt,
+      updatedAt,
+    ]
   );
 
   await db.execute("DELETE FROM scout_entries WHERE opponent_id = ?", [entry.id]);
@@ -482,7 +435,16 @@ async function saveEntryToDb(entry) {
     }
   }
 
-  return { ...entry, opponent, createdAt, updatedAt };
+  return {
+    ...entry,
+    opponent,
+    createdAt,
+    updatedAt,
+    roundNotes: {
+      R1: entry.roundNotes?.R1 ?? "",
+      R2: entry.roundNotes?.R2 ?? "",
+    },
+  };
 }
 
 async function deleteEntryFromDb(id) {
@@ -495,11 +457,16 @@ async function importEntriesToDb(entries) {
   let imported = 0;
   for (const entry of entries) {
     if (entry?.id && entry?.rounds?.R1 && entry?.rounds?.R2) {
-      await saveEntryToDb(entry);
+      await saveEntryToDb({ ...entry, roundNotes: entry.roundNotes ?? { R1: "", R2: "" } });
       imported += 1;
     }
   }
   return imported;
+}
+
+async function saveJsonNextToExe(filename, payload) {
+  const content = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  return await invoke("save_json_next_to_exe", { filename, content });
 }
 
 function AppIcon({ meta, size = 22 }) {
@@ -525,37 +492,38 @@ function AppIcon({ meta, size = 22 }) {
 
 function buildDiscordSummary(entry, artifactMaster) {
   const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
+
   const statLine = (hero) =>
-    `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${
-      hero.stats.Speed || "?"
-    } | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
+    `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${hero.stats.Speed || "?"} | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
 
   const lines = [];
-  lines.push(`**${entry.opponent || "Unnamed opponent"}**`);
-  if (entry.note) lines.push(`_${entry.note}_`);
-  lines.push("");
+
+  if (entry.opponent) lines.push(entry.opponent);
+  if (entry.note) lines.push(`Note: ${entry.note}`);
+  if (entry.opponent || entry.note) lines.push("");
 
   for (const roundKey of ["R1", "R2"]) {
-    lines.push(`__${roundKey === "R1" ? "Round 1" : "Round 2"}__`);
-    lines.push("");
+    lines.push(roundKey === "R1" ? "Round 1" : "Round 2");
 
-    entry.rounds[roundKey].forEach((hero, index) => {
+    const roundNote = entry.roundNotes?.[roundKey] ?? "";
+    if (roundNote) lines.push(`Team note: ${roundNote}`);
+
+    entry.rounds[roundKey].forEach((hero) => {
       const normalizedHero = normalizeHeroEntry(hero);
       const sets = normalizedHero.sets.length ? normalizedHero.sets.join(", ") : "?";
       const artifact = artifactName(normalizedHero.artifactId);
 
-      lines.push(`${index + 1}. **${normalizedHero.name || "?"}**`);
+      lines.push(`${normalizedHero.name || "?"} (${normalizedHero.class || "?"})`);
       lines.push(statLine(normalizedHero));
-      lines.push(`**Sets:** ${sets}`);
-      lines.push(`**Artifact:** ${artifact}`);
+      lines.push(`Sets: ${sets}`);
+      lines.push(`Artifact: ${artifact}`);
 
       if (normalizedHero.additionalNotes) {
-        lines.push(`**Additional Notes:** ${normalizedHero.additionalNotes}`);
-        lines.push("");
+        lines.push(`Speed note: ${normalizedHero.additionalNotes}`);
       }
     });
 
-    lines.push("");
+    if (roundKey === "R1") lines.push("");
   }
 
   return lines.join("\n").trim();
@@ -799,7 +767,7 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
   );
 }
 
-function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, onHeroChange }) {
+function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, onRoundNoteChange, onHeroChange }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2">
@@ -811,6 +779,13 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, onHeroChange
           <p className="text-sm text-slate-400">Three heroes with stats, custom set icons, and class-based artifact selection.</p>
         </div>
       </div>
+
+      <Field
+        label={`Round ${roundKey === "R1" ? "1" : "2"} Team Note`}
+        value={roundNote}
+        onChange={(value) => onRoundNoteChange(roundKey, value)}
+        placeholder="Optional note for this team"
+      />
 
       <div className="grid gap-3 xl:grid-cols-3">
         {heroes.map((hero, index) => (
@@ -830,7 +805,9 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, onHeroChange
 }
 
 function SummaryTable({ entry, artifactMaster, onCopyDiscord }) {
-  const rows = ["R1", "R2"].flatMap((roundKey) => entry.rounds[roundKey].map((hero, index) => ({ roundKey, index, hero: normalizeHeroEntry(hero) })));
+  const rows = ["R1", "R2"].flatMap((roundKey) =>
+    entry.rounds[roundKey].map((hero, index) => ({ roundKey, index, hero: normalizeHeroEntry(hero) }))
+  );
   const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "—";
 
   return (
@@ -840,7 +817,10 @@ function SummaryTable({ entry, artifactMaster, onCopyDiscord }) {
           <h2 className="font-bold text-slate-100">Summary</h2>
           <p className="text-sm text-slate-400">Copy the full defense as Discord-ready text.</p>
         </div>
-        <button onClick={onCopyDiscord} className="inline-flex items-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500">
+        <button
+          onClick={onCopyDiscord}
+          className="inline-flex items-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
+        >
           <Copy className="mr-2 h-4 w-4" /> Copy for Discord
         </button>
       </div>
@@ -914,20 +894,14 @@ export default function EpicSevenGwTrackerApp() {
   const actionsMenuRef = useRef(null);
 
   useEffect(() => {
-  function handleClickOutside(event) {
-    if (!actionsMenuRef.current) return;
-
-    if (!actionsMenuRef.current.contains(event.target)) {
-      setActionsOpen(false);
+    function handleClickOutside(event) {
+      if (!actionsMenuRef.current) return;
+      if (!actionsMenuRef.current.contains(event.target)) setActionsOpen(false);
     }
-  }
 
-  document.addEventListener("mousedown", handleClickOutside);
-
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, []);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   async function refreshList() {
     const opponents = await loadOpponents();
@@ -967,6 +941,17 @@ export default function EpicSevenGwTrackerApp() {
       rounds: {
         ...current.rounds,
         [roundKey]: current.rounds[roundKey].map((hero, index) => (index === heroIndex ? normalizeHeroEntry(nextHero) : hero)),
+      },
+    }));
+  };
+
+  const updateRoundNote = (roundKey, value) => {
+    setEntry((current) => ({
+      ...current,
+      updatedAt: new Date().toISOString(),
+      roundNotes: {
+        ...(current.roundNotes ?? { R1: "", R2: "" }),
+        [roundKey]: value,
       },
     }));
   };
@@ -1018,17 +1003,23 @@ export default function EpicSevenGwTrackerApp() {
     }
   };
 
-  const exportCurrentEntry = () => {
-    const safeName = slugify(entry.opponent || "unnamed-opponent");
-    const date = new Date().toISOString().slice(0, 10);
-    const filename = `e7-scouts__opponents__${safeName}__${date}-${safeName}.json`;
-    downloadTextFile(filename, JSON.stringify(entry, null, 2));
-    setStatus("Current entry exported as JSON.");
+  const exportCurrentEntry = async () => {
+    try {
+      const safeName = slugify(entry.opponent || "unnamed-opponent");
+      const date = new Date().toISOString().slice(0, 10);
+      const filename = `${date}-${safeName}.json`;
+      const savedPath = await saveJsonNextToExe(filename, entry);
+      setStatus(`Current entry saved: ${savedPath}`);
+    } catch (error) {
+      console.error(error);
+      setStatus(`Export failed: ${error.message || error}`);
+    }
   };
 
   const exportAllEntries = async () => {
     try {
       const fullEntries = [];
+
       for (const item of savedEntries) {
         const full = await loadEntryFromDb(item.id);
         if (full) fullEntries.push(full);
@@ -1036,14 +1027,15 @@ export default function EpicSevenGwTrackerApp() {
 
       const payload = {
         app: "Epic Seven GW Tracker",
-        version: 6,
+        version: 7,
         exportedAt: new Date().toISOString(),
         savedEntries: fullEntries,
       };
 
       const date = new Date().toISOString().slice(0, 10);
-      downloadTextFile(`e7-scouts__backups__backup-${date}.json`, JSON.stringify(payload, null, 2));
-      setStatus("Full SQLite backup exported as JSON.");
+      const filename = `backup-${date}.json`;
+      const savedPath = await saveJsonNextToExe(filename, payload);
+      setStatus(`Full backup saved: ${savedPath}`);
     } catch (error) {
       console.error(error);
       setStatus(`Backup export failed: ${error.message || error}`);
@@ -1149,33 +1141,15 @@ export default function EpicSevenGwTrackerApp() {
 
               {actionsOpen && (
                 <div className="absolute right-0 top-12 z-30 w-56 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
-                  <button
-                    onClick={() => {
-                      saveEntry();
-                      setActionsOpen(false);
-                    }}
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800"
-                  >
+                  <button onClick={() => { saveEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Save className="mr-2 h-4 w-4" /> Save to SQLite
                   </button>
 
-                  <button
-                    onClick={() => {
-                      exportCurrentEntry();
-                      setActionsOpen(false);
-                    }}
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800"
-                  >
+                  <button onClick={() => { exportCurrentEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Download className="mr-2 h-4 w-4" /> Export entry
                   </button>
 
-                  <button
-                    onClick={() => {
-                      exportAllEntries();
-                      setActionsOpen(false);
-                    }}
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800"
-                  >
+                  <button onClick={() => { exportAllEntries(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <FolderArchive className="mr-2 h-4 w-4" /> Export backup
                   </button>
 
@@ -1281,8 +1255,26 @@ export default function EpicSevenGwTrackerApp() {
           </aside>
 
           <div className="space-y-6">
-            <RoundPanel roundKey="R1" heroes={entry.rounds.R1} heroMaster={heroes} artifactMaster={artifacts} onHeroChange={updateHero} />
-            <RoundPanel roundKey="R2" heroes={entry.rounds.R2} heroMaster={heroes} artifactMaster={artifacts} onHeroChange={updateHero} />
+            <RoundPanel
+              roundKey="R1"
+              heroes={entry.rounds.R1}
+              heroMaster={heroes}
+              artifactMaster={artifacts}
+              roundNote={entry.roundNotes?.R1 ?? ""}
+              onRoundNoteChange={updateRoundNote}
+              onHeroChange={updateHero}
+            />
+
+            <RoundPanel
+              roundKey="R2"
+              heroes={entry.rounds.R2}
+              heroMaster={heroes}
+              artifactMaster={artifacts}
+              roundNote={entry.roundNotes?.R2 ?? ""}
+              onRoundNoteChange={updateRoundNote}
+              onHeroChange={updateHero}
+            />
+
             <SummaryTable entry={entry} artifactMaster={artifacts} onCopyDiscord={copyDiscord} />
           </div>
         </div>
