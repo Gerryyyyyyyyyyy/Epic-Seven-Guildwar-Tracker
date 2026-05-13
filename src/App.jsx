@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import {
-  Plus, Save, Search, Trash2, RotateCcw, Swords, Shield, Users,
+  Plus, Save, Search, Trash2, RotateCcw, Swords, Shield, Users, Image as ImageIcon, X,
   Download, Upload, Copy, FolderArchive, MoreVertical, Database as DatabaseIcon,
 } from "lucide-react";
 
@@ -909,7 +909,7 @@ function SpeedCalculator({ roundKey }) {
   );
 }
 
-function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, onRoundNoteChange, onHeroChange }) {
+function RoundPanel({roundKey,heroes,heroMaster,artifactMaster,roundNote,screenshots,onAddScreenshots,onRemoveScreenshot,onRoundNoteChange,onHeroChange,}) {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2">
@@ -929,6 +929,13 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, o
         placeholder="Optional note for this team"
       />
 
+      <TemporaryScreenshots
+       roundKey={roundKey}
+       screenshots={screenshots}
+       onAddScreenshots={onAddScreenshots}
+       onRemoveScreenshot={onRemoveScreenshot}
+     />
+
       <SpeedCalculator roundKey={roundKey} />
 
       <div className="grid gap-3 xl:grid-cols-3">
@@ -945,6 +952,79 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, o
         ))}
       </div>
     </section>
+  );
+}
+
+function TemporaryScreenshots({ roundKey, screenshots, onAddScreenshots, onRemoveScreenshot }) {
+  const inputId = `screenshot-upload-${roundKey}`;
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 font-bold text-slate-100">
+            <ImageIcon size={18} />
+            Temporary Screenshots
+          </h3>
+          <p className="text-xs text-slate-400">
+            Add quick CR bar screenshots. They are not saved to SQLite and disappear after restart.
+          </p>
+        </div>
+
+        <label
+          htmlFor={inputId}
+          className="inline-flex cursor-pointer items-center rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 hover:bg-slate-800"
+        >
+          <Upload className="mr-2 h-3 w-3" />
+          Add
+        </label>
+
+        <input
+          id={inputId}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(event) => {
+            onAddScreenshots(roundKey, event.target.files);
+            event.target.value = "";
+          }}
+          className="hidden"
+        />
+      </div>
+
+      {screenshots.length === 0 ? (
+        <p className="rounded-xl bg-slate-950 p-3 text-sm text-slate-500">
+          No screenshots added.
+        </p>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+          {screenshots.map((screenshot) => (
+            <div
+              key={screenshot.id}
+              className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-3 py-2">
+                <p className="truncate text-xs text-slate-400">{screenshot.name}</p>
+                <button
+                  type="button"
+                  onClick={() => onRemoveScreenshot(roundKey, screenshot.id)}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400"
+                  title="Remove screenshot"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <img
+                src={screenshot.url}
+                alt={screenshot.name}
+                className="max-h-64 w-full object-contain"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1036,6 +1116,10 @@ export default function EpicSevenGwTrackerApp() {
   const [status, setStatus] = useState("Starting SQLite database...");
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsMenuRef = useRef(null);
+  const [temporaryScreenshots, setTemporaryScreenshots] = useState({
+    R1: [],
+    R2: [],
+  });
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -1099,6 +1183,49 @@ export default function EpicSevenGwTrackerApp() {
       },
     }));
   };
+
+  const addTemporaryScreenshots = (roundKey, files) => {
+  const selectedFiles = Array.from(files || []);
+  if (selectedFiles.length === 0) return;
+
+  const nextScreenshots = selectedFiles
+    .filter((file) => file.type.startsWith("image/"))
+    .map((file) => ({
+      id: uid(),
+      name: file.name,
+      url: URL.createObjectURL(file),
+    }));
+
+  setTemporaryScreenshots((current) => ({
+    ...current,
+    [roundKey]: [...(current[roundKey] ?? []), ...nextScreenshots],
+  }));
+};
+
+  const removeTemporaryScreenshot = (roundKey, screenshotId) => {
+    setTemporaryScreenshots((current) => {
+      const removed = current[roundKey]?.find((item) => item.id === screenshotId);
+
+      if (removed?.url) {
+        URL.revokeObjectURL(removed.url);
+      }
+
+      return {
+        ...current,
+        [roundKey]: (current[roundKey] ?? []).filter((item) => item.id !== screenshotId),
+      };
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      for (const roundKey of ["R1", "R2"]) {
+        for (const screenshot of temporaryScreenshots[roundKey] ?? []) {
+          URL.revokeObjectURL(screenshot.url);
+        }
+      }
+    };
+  }, [temporaryScreenshots]);
 
   const newEntry = () => {
     setEntry(blankEntry());
@@ -1406,6 +1533,9 @@ export default function EpicSevenGwTrackerApp() {
               artifactMaster={artifacts}
               roundNote={entry.roundNotes?.R1 ?? ""}
               onRoundNoteChange={updateRoundNote}
+              screenshots={temporaryScreenshots.R1}
+              onAddScreenshots={addTemporaryScreenshots}
+              onRemoveScreenshot={removeTemporaryScreenshot}
               onHeroChange={updateHero}
             />
 
@@ -1415,6 +1545,9 @@ export default function EpicSevenGwTrackerApp() {
               heroMaster={heroes}
               artifactMaster={artifacts}
               roundNote={entry.roundNotes?.R2 ?? ""}
+              screenshots={temporaryScreenshots.R2}
+              onAddScreenshots={addTemporaryScreenshots}
+              onRemoveScreenshot={removeTemporaryScreenshot}
               onRoundNoteChange={updateRoundNote}
               onHeroChange={updateHero}
             />
