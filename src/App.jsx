@@ -502,7 +502,7 @@ function buildDiscordSummary(entry, artifactMaster) {
   const lines = [];
 
   if (entry.opponent) {
-    lines.push(entry.opponent);
+  lines.push(`**${entry.opponent}**`);
   }
 
   if (entry.note) {
@@ -514,7 +514,7 @@ function buildDiscordSummary(entry, artifactMaster) {
   }
 
   for (const roundKey of ["R1", "R2"]) {
-    lines.push(roundKey === "R1" ? "Round 1" : "Round 2");
+    lines.push(roundKey === "R1" ? "__Round 1__" : "__Round 2__");
 
     const roundNote = entry.roundNotes?.[roundKey] ?? "";
     if (roundNote) {
@@ -534,7 +534,7 @@ function buildDiscordSummary(entry, artifactMaster) {
       lines.push(`**Artifact:** ${artifact}`);
 
       if (normalizedHero.additionalNotes) {
-        lines.push(`Additional note: ${normalizedHero.additionalNotes}`);
+        lines.push(`**Additional note:** ${normalizedHero.additionalNotes}`);
       }
 
       lines.push("");
