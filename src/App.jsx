@@ -508,22 +508,23 @@ function buildDiscordSummary(entry, artifactMaster) {
     const roundNote = entry.roundNotes?.[roundKey] ?? "";
     if (roundNote) lines.push(`Team note: ${roundNote}`);
 
+    lines.push("");
+    
     entry.rounds[roundKey].forEach((hero) => {
       const normalizedHero = normalizeHeroEntry(hero);
       const sets = normalizedHero.sets.length ? normalizedHero.sets.join(", ") : "?";
       const artifact = artifactName(normalizedHero.artifactId);
 
-      lines.push(`${normalizedHero.name || "?"} (${normalizedHero.class || "?"})`);
-      lines.push(statLine(normalizedHero));
-      lines.push(`Sets: ${sets}`);
-      lines.push(`Artifact: ${artifact}`);
+      lines.push(`${index + 1}. **${normalizedHero.name || "?"}**`);
+      lines.push(`${statLine(normalizedHero)}`);
+      lines.push(`**Sets:** ${sets}`);
+      lines.push(`**Artifact:** ${artifact}`);
 
       if (normalizedHero.additionalNotes) {
-        lines.push(`Speed note: ${normalizedHero.additionalNotes}`);
+        lines.push(`Additional note: ${normalizedHero.additionalNotes}`);
       }
+      lines.push("");
     });
-
-    if (roundKey === "R1") lines.push("");
   }
 
   return lines.join("\n").trim();
