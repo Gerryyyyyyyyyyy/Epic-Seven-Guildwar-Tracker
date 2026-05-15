@@ -960,13 +960,15 @@ function RoundPanel({roundKey,heroes,heroMaster,artifactMaster,roundNote,screens
         onChange={(value) => onRoundNoteChange(roundKey, value)}
         placeholder="Optional note for this team"
       />
-
+      
+      {/*
       <TemporaryScreenshots
        roundKey={roundKey}
        screenshots={screenshots}
        onAddScreenshots={onAddScreenshots}
        onRemoveScreenshot={onRemoveScreenshot}
      />
+     */}
 
       <SpeedCalculator roundKey={roundKey} />
 
