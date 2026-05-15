@@ -804,19 +804,29 @@ function calculateEnemySpeed(mySpeedRaw, enemyCrRaw, mode) {
     };
   }
 
-  const crMultiplier = mode === "second" ? 1 + enemyCr / 100 : enemyCr / 100;
-  const exactEnemySpeed = mySpeed * crMultiplier;
+  const displayedEnemyCr = mode === "second" ? 100 + enemyCr : enemyCr;
+
+  // Normal estimate without start CR RNG.
+  const estimatedSpeed = mySpeed * (displayedEnemyCr / 100);
+
+  // Epic Seven start CR RNG: every unit can start between 0% and 5%.
+  // Extreme 1: I have 0%, enemy has 5% => enemy speed estimate becomes lower.
+  // Extreme 2: I have 5%, enemy has 0% => enemy speed estimate becomes higher.
+  const lowestPossibleSpeed = mySpeed * ((displayedEnemyCr - 5) / 100);
+  const highestPossibleSpeed = mySpeed * ((displayedEnemyCr + 5) / 100);
 
   return {
     valid: true,
     mySpeed,
     enemyCr,
     mode,
-    crMultiplier,
-    exactEnemySpeed,
-    enemySpeedRounded: Math.round(exactEnemySpeed),
-    enemySpeedFloor: Math.floor(exactEnemySpeed),
-    enemySpeedCeil: Math.ceil(exactEnemySpeed),
+    displayedEnemyCr,
+    estimatedSpeed,
+    estimatedSpeedRounded: Math.round(estimatedSpeed),
+    lowestPossibleSpeed,
+    highestPossibleSpeed,
+    lowestPossibleSpeedRounded: Math.round(lowestPossibleSpeed),
+    highestPossibleSpeedRounded: Math.round(highestPossibleSpeed),
   };
 }
 
@@ -832,13 +842,11 @@ function SpeedCalculator({ roundKey }) {
 
   const formulaText =
     mode === "second"
-      ? "Enemy speed = my speed × (100% + enemy current CR%)"
-      : "Enemy speed = my speed × enemy current CR%";
+      ? "Estimated speed = my speed × (100% + enemy current CR%)"
+      : "Estimated speed = my speed × enemy current CR%";
 
-  const exampleText =
-    mode === "second"
-      ? "Example: My 250 speed unit moves second. Enemy already moved and is now at 20% CR → 250 × 1.20 = 300 enemy speed."
-      : "Example: My 300 speed unit moves first. Enemy is at 85% CR → 300 × 0.85 = 255 enemy speed.";
+  const crRngText =
+    "Start CR RNG can shift the estimate because each unit can start with 0–5% CR. The two extremes are: I start at 0% and enemy starts at 5%, or I start at 5% and enemy starts at 0%.";
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
@@ -885,23 +893,47 @@ function SpeedCalculator({ roundKey }) {
         {!result.valid ? (
           <p className="text-sm text-slate-500">{result.message}</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-slate-400">{formulaText}</p>
 
             <p className="text-2xl font-black text-slate-50">
-              Estimated enemy speed:{" "}
+              Estimated speed:{" "}
               <span className="text-indigo-400">
-                {result.enemySpeedRounded}
+                {result.estimatedSpeedRounded}
               </span>
             </p>
 
-            <p className="text-xs text-slate-500">
-              Exact: {result.exactEnemySpeed.toFixed(2)} · Range:{" "}
-              {result.enemySpeedFloor}–{result.enemySpeedCeil} · Multiplier:{" "}
-              {result.crMultiplier.toFixed(2)}x
-            </p>
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                With 0–5% start CR RNG
+              </p>
 
-            <p className="text-xs text-slate-500">{exampleText}</p>
+              <p className="text-sm text-slate-300">
+                Possible range:{" "}
+                <span className="font-bold text-emerald-400">
+                  {result.lowestPossibleSpeedRounded}
+                </span>{" "}
+                –{" "}
+                <span className="font-bold text-red-400">
+                  {result.highestPossibleSpeedRounded}
+                </span>
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                Exact range: {result.lowestPossibleSpeed.toFixed(2)} –{" "}
+                {result.highestPossibleSpeed.toFixed(2)}
+              </p>
+            </div>
+
+            <div className="space-y-1 text-xs text-slate-500">
+              <p>
+                Effective enemy CR used:{" "}
+                <span className="text-slate-300">
+                  {result.displayedEnemyCr.toFixed(2)}%
+                </span>
+              </p>
+              <p>{crRngText}</p>
+            </div>
           </div>
         )}
       </div>
@@ -1389,9 +1421,9 @@ export default function EpicSevenGwTrackerApp() {
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-sm font-medium text-slate-300">
                 <Shield size={16} /> Epic Seven Guild War Tracker
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-50 md:text-5xl">Defense Scout Interface</h1>
+              <h1 className="text-3xl font-black tracking-tight text-slate-50 md:text-5xl">Epic Seven Guild War Scout App</h1>
               <p className="mt-3 max-w-2xl text-slate-400">
-                SQLite desktop version with Fribbels master data, custom image icons, JSON import/export, and Discord copy output.
+                Scout enemy defenses, calculate speed ranges, and export clean Discord notes. Made by Gerryyyyyyyy
               </p>
             </div>
 
