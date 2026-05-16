@@ -43,10 +43,3 @@ The installer/exe will be created inside:
 src-tauri/target/release/bundle/
 ```
 
-## Next development steps
-
-1. Add admin screens for editing heroes and artifacts.
-2. Add full Epic Seven hero/artifact data.
-3. Add speed logic.
-4. Add global backup/export of the SQLite database.
-5. Add filters by hero, artifact, set, speed range, and opponent.
