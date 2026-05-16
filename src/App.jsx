@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 
 const DB_URL = "sqlite:e7_gw_tracker.db";
+const FRIBBELS_HERO_DATA_URL = "https://raw.githubusercontent.com/fribbels/Fribbels-Epic-7-Optimizer/main/data/cache/herodata.json";
+const FRIBBELS_ARTIFACT_DATA_URL = "https://raw.githubusercontent.com/fribbels/Fribbels-Epic-7-Optimizer/main/data/cache/artifactdata.json";
 const STAT_FIELDS = ["ATK", "DEF", "HP", "Speed", "EFF", "ER"];
 
 const SET_OPTIONS = [
@@ -265,12 +267,53 @@ async function fetchBundledJson(paths) {
   return null;
 }
 
+async function fetchJsonFromUrl(url) {
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not fetch data. Status: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
 async function importBundledMasterData(db) {
   const rawHeroes = await fetchBundledJson(["./data/herodata.json", "data/herodata.json", "/data/herodata.json"]);
   if (rawHeroes) await upsertHeroes(db, normalizeFribbelsHeroes(rawHeroes));
 
   const rawArtifacts = await fetchBundledJson(["./data/artifactdata.json", "data/artifactdata.json", "/data/artifactdata.json"]);
   if (rawArtifacts) await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
+}
+
+
+async function updateMasterDataFromFribbels() {
+  const [rawHeroes, rawArtifacts] = await Promise.all([
+    fetchJsonFromUrl(FRIBBELS_HERO_DATA_URL),
+    fetchJsonFromUrl(FRIBBELS_ARTIFACT_DATA_URL),
+  ]);
+
+  const heroes = normalizeFribbelsHeroes(rawHeroes);
+  const artifacts = normalizeFribbelsArtifacts(rawArtifacts);
+
+  if (heroes.length < 100) {
+    throw new Error(`Hero data looks wrong. Only ${heroes.length} heroes found.`);
+  }
+
+  if (artifacts.length < 50) {
+    throw new Error(`Artifact data looks wrong. Only ${artifacts.length} artifacts found.`);
+  }
+
+  const db = await getDb();
+
+  await upsertHeroes(db, heroes);
+  await upsertArtifacts(db, artifacts);
+
+  return {
+    heroesCount: heroes.length,
+    artifactsCount: artifacts.length,
+  };
 }
 
 async function upsertHeroes(db, heroes) {
@@ -1177,6 +1220,25 @@ export default function EpicSevenGwTrackerApp() {
     setStatus(`${prefix}. Loaded ${master.heroes.length} heroes and ${master.artifacts.length} artifacts.`);
   }
 
+  const updateMasterData = async () => {
+  try {
+    setStatus("Updating master data from Fribbels...");
+
+    const result = await updateMasterDataFromFribbels();
+
+    const master = await loadMasterData();
+    setHeroes(master.heroes.length ? master.heroes : HERO_MASTER_DATA);
+    setArtifacts(master.artifacts.length ? master.artifacts : ARTIFACT_MASTER_DATA);
+
+    setStatus(
+      `Master data updated from Fribbels. Loaded ${result.heroesCount} heroes and ${result.artifactsCount} artifacts.`
+    );
+  } catch (error) {
+    console.error(error);
+    setStatus(`Master data update failed: ${error.message || error}`);
+  }
+};
+
   useEffect(() => {
     (async () => {
       try {
@@ -1450,6 +1512,10 @@ export default function EpicSevenGwTrackerApp() {
                     <Save className="mr-2 h-4 w-4" /> Save to SQLite
                   </button>
 
+                  <button onClick={() => {updateMasterData(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
+                    <Download className="mr-2 h-4 w-4" /> Update master data
+                  </button>
+                  
                   <button onClick={() => { exportCurrentEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Download className="mr-2 h-4 w-4" /> Export entry
                   </button>
