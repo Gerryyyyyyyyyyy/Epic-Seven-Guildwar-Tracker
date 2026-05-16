@@ -1487,7 +1487,7 @@ export default function EpicSevenGwTrackerApp() {
               </div>
               <h1 className="text-3xl font-black tracking-tight text-slate-50 md:text-5xl">Epic Seven Guild War Scout App</h1>
               <p className="mt-3 max-w-2xl text-slate-400">
-                Scout enemy defenses, calculate speed ranges, and export clean Discord notes. Made by Gerryyyyyyyy
+                Scout enemy defenses, calculate speed ranges, and export clean Discord notes.
               </p>
             </div>
 
