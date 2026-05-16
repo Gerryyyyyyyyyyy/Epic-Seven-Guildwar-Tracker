@@ -1,20 +1,31 @@
-# Epic Seven GW Tracker
+# Epic Seven Guild War Tracker
 
-A Tauri + React + SQLite desktop app scaffold for manually scouting Epic Seven Guild War defenses.
+A desktop scouting tool for Epic Seven Guild War defenses.
+
+The app helps you save enemy defenses, track hero stats, calculate estimated enemy speed from CR position, and copy clean Discord-ready notes.
 
 ## Features
 
-- Windows `.exe` target through Tauri
-- Local SQLite database
-- Opponent entries
-- Round 1 and Round 2
+- Two Guild War rounds
 - Three heroes per round
-- Stats: ATK, DEF, HP, Speed, EFF, ER
-- Speed note field for future logic
-- Clickable sets
+- Hero stats:
+  - ATK
+  - DEF
+  - HP
+  - Speed
+  - EFF
+  - ER
+- Set selection with custom icons
 - Class-based artifact selection
-- Basic seeded hero and artifact database
-- Export current entry as JSON
+- Searchable hero and artifact dropdowns
+- SQLite local database
+- Save/load/delete opponents
+- Export/import JSON backups
+- Discord-ready copy output
+- Per-round team notes
+- Speed calculator for CR-based speed estimation
+- Dark mode UI
+- Fribbels master data update button
 
 ## Requirements
 
@@ -42,4 +53,12 @@ The installer/exe will be created inside:
 ```text
 src-tauri/target/release/bundle/
 ```
+For easy use, you can run the portable:
 
+```text
+e7-gw-tracker.exe
+```
+## Credits
+
+This project uses community-maintained Epic Seven data from Fribbels.
+Epic Seven is owned by Smilegate. This project is a fan-made scouting tool and is not affiliated with or endorsed by Smilegate.
