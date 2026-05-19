@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
+import { createClient } from "@supabase/supabase-js";
 import {
   Plus, Save, Search, Trash2, RotateCcw, Swords, Shield, Users, Image as ImageIcon, X,
   Download, Upload, Copy, FolderArchive, MoreVertical, Database as DatabaseIcon,
 } from "lucide-react";
 
 const DB_URL = "sqlite:e7_gw_tracker.db";
+
+
+// Do NOT use the service_role key in the app.
+const SUPABASE_URL = "https://xihgqvybglezyyargzvm.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpaGdxdnliZ2xlenl5YXJnenZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMDUxMzgsImV4cCI6MjA5NDc4MTEzOH0.H4_xRJ3csHyhbio5WDc4o6t3Ui98WFRgKMQl8qr_TNM";
+
 const FRIBBELS_HERO_DATA_URL = "https://raw.githubusercontent.com/fribbels/Fribbels-Epic-7-Optimizer/main/data/cache/herodata.json";
 const FRIBBELS_ARTIFACT_DATA_URL = "https://raw.githubusercontent.com/fribbels/Fribbels-Epic-7-Optimizer/main/data/cache/artifactdata.json";
 const STAT_FIELDS = ["ATK", "DEF", "HP", "Speed", "EFF", "ER"];
@@ -509,6 +516,78 @@ async function importEntriesToDb(entries) {
 async function saveJsonNextToExe(filename, payload) {
   const content = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
   return await invoke("save_json_next_to_exe", { filename, content });
+}
+
+function getSupabaseClient() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error("Supabase is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY in App.jsx.");
+  }
+
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+function getRoundDefenseHeroNames(entry, roundKey) {
+  return (entry.rounds?.[roundKey] ?? [])
+    .map((hero) => normalizeHeroEntry(hero).name)
+    .map((name) => String(name || "").trim())
+    .filter(Boolean);
+}
+
+async function fetchCounterGuidesForDefense(defenseHeroes) {
+  const names = defenseHeroes.map((name) => String(name || "").trim()).filter(Boolean);
+
+  if (names.length === 0) {
+    return [];
+  }
+
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("counter_guides")
+    .select("id, defense_heroes, offense_heroes, notes, rating, author, source, created_at")
+    .eq("is_public", true)
+    .contains("defense_heroes", names)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
+}
+
+async function submitCounterGuide({ defenseHeroes, offenseHeroes, notes, rating, author }) {
+  const cleanDefenseHeroes = defenseHeroes
+    .map((name) => String(name || "").trim())
+    .filter(Boolean);
+
+  const cleanOffenseHeroes = offenseHeroes
+    .map((name) => String(name || "").trim())
+    .filter(Boolean);
+
+  if (cleanDefenseHeroes.length === 0) {
+    throw new Error("Defense heroes are missing.");
+  }
+
+  if (cleanOffenseHeroes.length === 0) {
+    throw new Error("Offense heroes are missing.");
+  }
+
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase.from("counter_guides").insert({
+    defense_heroes: cleanDefenseHeroes,
+    offense_heroes: cleanOffenseHeroes,
+    notes: notes?.trim() || null,
+    rating: rating || "Good",
+    author: author?.trim() || "Community",
+    source: "app",
+    is_public: false,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 function AppIcon({ meta, size = 22 }) {
@@ -1186,6 +1265,246 @@ function TemporaryScreenshots({ roundKey, screenshots, onAddScreenshots, onRemov
   );
 }
 
+function CounterSuggestions({ entry, heroMaster }) {
+  const [activeRound, setActiveRound] = useState("R1");
+  const [results, setResults] = useState([]);
+  const [status, setStatus] = useState("Select a round and search for matching community counters.");
+  const [loading, setLoading] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [offenseHeroIds, setOffenseHeroIds] = useState(["", "", ""]);
+  const [counterNotes, setCounterNotes] = useState("");
+  const [counterRating, setCounterRating] = useState("Good");
+  const [counterAuthor, setCounterAuthor] = useState("");
+
+  const defenseHeroes = useMemo(() => getRoundDefenseHeroNames(entry, activeRound), [entry, activeRound]);
+
+  const heroOptions = useMemo(
+    () =>
+      heroMaster.map((item) => ({
+        value: item.id,
+        label: `${item.name} · ${item.class}${item.rarity ? ` · ${item.rarity}★` : ""}`,
+        meta: item.element || "",
+        searchText: `${item.name} ${item.class} ${item.element || ""}`.toLowerCase(),
+      })),
+    [heroMaster]
+  );
+
+  const offenseHeroNames = offenseHeroIds
+    .map((heroId) => heroMaster.find((hero) => hero.id === heroId)?.name ?? "")
+    .filter(Boolean);
+
+  const findCounters = async () => {
+    try {
+      setLoading(true);
+      setStatus(`Searching counters for ${activeRound}...`);
+
+      const guides = await fetchCounterGuidesForDefense(defenseHeroes);
+      setResults(guides);
+
+      if (guides.length === 0) {
+        setStatus("No matching counters found yet.");
+      } else {
+        setStatus(`Found ${guides.length} matching counter(s).`);
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus(`Counter search failed: ${error.message || error}`);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitCounter = async () => {
+    try {
+      setSubmitting(true);
+      setStatus("Submitting counter for review...");
+
+      await submitCounterGuide({
+        defenseHeroes,
+        offenseHeroes: offenseHeroNames,
+        notes: counterNotes,
+        rating: counterRating,
+        author: counterAuthor,
+      });
+
+      setStatus("Counter submitted. It will become public after approval.");
+      setSubmitOpen(false);
+      setOffenseHeroIds(["", "", ""]);
+      setCounterNotes("");
+      setCounterRating("Good");
+    } catch (error) {
+      console.error(error);
+      setStatus(`Counter submit failed: ${error.message || error}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="font-bold text-slate-100">Counter Suggestions</h2>
+          <p className="text-sm text-slate-400">
+            Search public counters or submit a new counter for review.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {["R1", "R2"].map((roundKey) => (
+            <button
+              key={roundKey}
+              type="button"
+              onClick={() => {
+                setActiveRound(roundKey);
+                setResults([]);
+                setStatus("Select a round and search for matching community counters.");
+              }}
+              className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                activeRound === roundKey
+                  ? "bg-indigo-600 text-white"
+                  : "border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
+              }`}
+            >
+              {roundKey === "R1" ? "Round 1" : "Round 2"}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            onClick={findCounters}
+            disabled={loading || defenseHeroes.length === 0}
+            className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? "Searching..." : "Find counters"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubmitOpen((value) => !value)}
+            disabled={defenseHeroes.length === 0}
+            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitOpen ? "Hide submit" : "Submit counter"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-3 rounded-xl bg-slate-950 p-3 text-sm text-slate-400">
+        <p>
+          Defense:{" "}
+          <span className="font-semibold text-slate-200">
+            {defenseHeroes.length ? defenseHeroes.join(" / ") : "No heroes selected"}
+          </span>
+        </p>
+        <p className="mt-1 text-xs text-slate-500">{status}</p>
+      </div>
+
+      {submitOpen && (
+        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="mb-3">
+            <h3 className="font-bold text-slate-100">Submit counter for {activeRound === "R1" ? "Round 1" : "Round 2"}</h3>
+            <p className="text-xs text-slate-500">
+              Uploaded counters are saved as private first and become public after approval.
+            </p>
+          </div>
+
+          <div className="grid gap-3 xl:grid-cols-3">
+            {[0, 1, 2].map((index) => (
+              <SearchableSelect
+                key={`offense-hero-${index}`}
+                label={`Offense Hero ${index + 1}`}
+                value={offenseHeroIds[index]}
+                onChange={(value) =>
+                  setOffenseHeroIds((current) =>
+                    current.map((item, itemIndex) => (itemIndex === index ? value : item))
+                  )
+                }
+                options={heroOptions}
+                placeholder="Search offense hero..."
+              />
+            ))}
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_2fr]">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-400">Rating</span>
+              <select
+                value={counterRating}
+                onChange={(event) => setCounterRating(event.target.value)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
+              >
+                <option value="Very Good">Very Good</option>
+                <option value="Good">Good</option>
+                <option value="Risky">Risky</option>
+                <option value="Tech">Tech</option>
+              </select>
+            </label>
+
+            <Field
+              label="Author"
+              value={counterAuthor}
+              onChange={setCounterAuthor}
+              placeholder="e.g. Gerry"
+            />
+
+            <Field
+              label="Notes"
+              value={counterNotes}
+              onChange={setCounterNotes}
+              placeholder="How does the counter work?"
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-slate-500">
+              Offense: {offenseHeroNames.length ? offenseHeroNames.join(" / ") : "No offense heroes selected"}
+            </p>
+
+            <button
+              type="button"
+              onClick={submitCounter}
+              disabled={submitting || defenseHeroes.length === 0 || offenseHeroNames.length === 0}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? "Submitting..." : "Submit for review"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {results.map((guide) => (
+            <article key={guide.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {guide.rating || "Counter"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {guide.author ? `By ${guide.author}` : "Community"}
+                </p>
+              </div>
+
+              <div className="space-y-2 text-sm">
+                <p className="text-slate-400">
+                  Defense: <span className="font-semibold text-slate-200">{(guide.defense_heroes ?? []).join(" / ")}</span>
+                </p>
+                <p className="text-slate-400">
+                  Offense: <span className="font-semibold text-emerald-400">{(guide.offense_heroes ?? []).join(" / ")}</span>
+                </p>
+                {guide.notes && <p className="text-slate-300">{guide.notes}</p>}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SummaryTable({ entry, artifactMaster, onCopyDiscord }) {
   const rows = ["R1", "R2"].flatMap((roundKey) =>
     entry.rounds[roundKey].map((hero, index) => ({ roundKey, index, hero: normalizeHeroEntry(hero) }))
@@ -1763,6 +2082,8 @@ export default function EpicSevenGwTrackerApp() {
                 onHeroChange={updateHero}
               />
             </div>
+
+            <CounterSuggestions entry={entry} heroMaster={heroes} />
 
             <SummaryTable entry={entry} artifactMaster={artifacts} onCopyDiscord={copyDiscord} />
           </div>
