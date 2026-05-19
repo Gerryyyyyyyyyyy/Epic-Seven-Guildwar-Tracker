@@ -534,7 +534,9 @@ function getRoundDefenseHeroNames(entry, roundKey) {
 }
 
 async function fetchCounterGuidesForDefense(defenseHeroes) {
-  const names = defenseHeroes.map((name) => String(name || "").trim()).filter(Boolean);
+  const names = defenseHeroes
+    .map((name) => String(name || "").trim())
+    .filter(Boolean);
 
   if (names.length === 0) {
     return [];
@@ -546,7 +548,15 @@ async function fetchCounterGuidesForDefense(defenseHeroes) {
     .from("counter_guides")
     .select("id, defense_heroes, offense_heroes, notes, rating, author, source, created_at")
     .eq("is_public", true)
+
+    // Order-independent exact team match:
+    // DB defense must contain all searched heroes.
     .contains("defense_heroes", names)
+
+    // Searched heroes must contain all DB defense heroes.
+    // This prevents a 2-hero search from matching a 3-hero defense by accident.
+    .containedBy("defense_heroes", names)
+
     .order("created_at", { ascending: false });
 
   if (error) {
