@@ -586,6 +586,32 @@ function buildDiscordSummary(entry, artifactMaster) {
   return lines.join("\n").trim();
 }
 
+function sanitizeRestrictedInput(value, allowedCharacters) {
+  const allowed = new Set(allowedCharacters);
+  return String(value || "")
+    .split("")
+    .filter((character) => allowed.has(character))
+    .join("");
+}
+
+const HP_ALLOWED_CHARACTERS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "+", "~", "<", ">", "k", "K"];
+const SPEED_ALLOWED_CHARACTERS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "~", "<", ">"];
+
+function RestrictedField({ label, value, onChange, placeholder = "", allowedCharacters }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(sanitizeRestrictedInput(event.target.value, allowedCharacters))}
+        placeholder={placeholder}
+        inputMode="text"
+        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
+      />
+    </label>
+  );
+}
+
 function Field({ label, value, onChange, placeholder = "" }) {
   return (
     <label className="block">
