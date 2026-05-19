@@ -700,6 +700,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
 
 function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }) {
   const normalizedHero = normalizeHeroEntry(hero);
+  const [open, setOpen] = useState(true);
 
   const heroOptions = heroes.map((item) => ({
     value: item.id,
@@ -718,6 +719,7 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
     }));
 
   const classMeta = getClassMeta(normalizedHero.class);
+  const selectedArtifactName = artifacts.find((artifact) => artifact.id === normalizedHero.artifactId)?.name ?? "No artifact";
 
   const updateHero = (patch) => onHeroChange(roundKey, heroIndex, { ...normalizedHero, ...patch });
 
@@ -746,80 +748,94 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
   };
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left hover:bg-slate-800/70"
+      >
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hero {heroIndex + 1}</p>
           <h3 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <AppIcon meta={classMeta} size={18} />
             <span className="truncate">{normalizedHero.name || "Unnamed Hero"}</span>
           </h3>
+          <p className="mt-1 truncate text-xs text-slate-500">
+            HP {normalizedHero.stats.HP || "?"} · SPD {normalizedHero.stats.Speed || "?"} · {selectedArtifactName}
+          </p>
         </div>
-        <div className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">{roundKey}</div>
-      </div>
 
-      <div className="grid gap-3 xl:grid-cols-[1.35fr_0.9fr]">
-        <SearchableSelect label="Hero" value={normalizedHero.heroId} onChange={changeHero} options={heroOptions} placeholder="Search hero..." />
-        <Field label="Custom name" value={normalizedHero.name} onChange={(value) => updateHero({ name: value, heroId: "" })} placeholder="e.g. Peira" />
-      </div>
-
-      <div className="mt-3 grid gap-3 xl:grid-cols-2">
-        <Field
-          label="HP"
-          value={normalizedHero.stats.HP}
-          onChange={(value) => updateStat("HP", value)}
-          placeholder="e.g. 25000"
-        />
-        <Field
-          label="Speed"
-          value={normalizedHero.stats.Speed}
-          onChange={(value) => updateStat("Speed", value)}
-          placeholder="e.g. 285+"
-        />
-      </div>
-
-      <div className="mt-3">
-        <SearchableSelect
-          label={`Artifact (${normalizedHero.class})`}
-          value={normalizedHero.artifactId}
-          onChange={(value) => updateHero({ artifactId: value })}
-          options={artifactOptions}
-          placeholder="Search artifact..."
-        />
-      </div>
-
-      <div className="mt-3">
-        <Field
-          label="Additional Notes"
-          value={normalizedHero.additionalNotes}
-          onChange={(value) => updateHero({ additionalNotes: value })}
-          placeholder="Optional note"
-        />
-      </div>
-
-      <div className="mt-4">
-        <p className="mb-2 text-xs font-medium text-slate-400">Sets</p>
-        <div className="flex flex-wrap gap-2">
-          {SET_OPTIONS.map((setOption) => {
-            const active = normalizedHero.sets.includes(setOption.name);
-            return (
-              <button
-                key={setOption.name}
-                type="button"
-                onClick={() => toggleSet(setOption.name)}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
-                  active
-                    ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
-                    : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
-                }`}
-              >
-                <AppIcon meta={setOption} size={22} />
-                {setOption.name}
-              </button>
-            );
-          })}
+        <div className="shrink-0 rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
+          {open ? "Hide" : "Show"}
         </div>
-      </div>
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t border-slate-800 p-4">
+          <div className="grid gap-3 xl:grid-cols-[1.35fr_1.35fr_0.65fr_0.65fr]">
+            <SearchableSelect
+              label="Hero"
+              value={normalizedHero.heroId}
+              onChange={changeHero}
+              options={heroOptions}
+              placeholder="Search hero..."
+            />
+
+            <SearchableSelect
+              label={`Artifact (${normalizedHero.class})`}
+              value={normalizedHero.artifactId}
+              onChange={(value) => updateHero({ artifactId: value })}
+              options={artifactOptions}
+              placeholder="Search artifact..."
+            />
+
+            <Field
+              label="HP"
+              value={normalizedHero.stats.HP}
+              onChange={(value) => updateStat("HP", value)}
+              placeholder="e.g. 25000"
+            />
+
+            <Field
+              label="Speed"
+              value={normalizedHero.stats.Speed}
+              onChange={(value) => updateStat("Speed", value)}
+              placeholder="e.g. 285+"
+            />
+          </div>
+
+          <Field
+            label="Additional Notes"
+            value={normalizedHero.additionalNotes}
+            onChange={(value) => updateHero({ additionalNotes: value })}
+            placeholder="Optional note"
+          />
+
+          <div>
+            <p className="mb-2 text-xs font-medium text-slate-400">Sets</p>
+            <div className="flex flex-wrap gap-2">
+              {SET_OPTIONS.map((setOption) => {
+                const active = normalizedHero.sets.includes(setOption.name);
+                return (
+                  <button
+                    key={setOption.name}
+                    type="button"
+                    onClick={() => toggleSet(setOption.name)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
+                      active
+                        ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
+                        : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
+                    }`}
+                  >
+                    <AppIcon meta={setOption} size={22} />
+                    {setOption.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -985,40 +1001,58 @@ function SpeedCalculator({ roundKey }) {
 }
 
 function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, onRoundNoteChange, onHeroChange }) {
+  const [open, setOpen] = useState(true);
+
   return (
-    <section className="space-y-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-4">
-      <div className="flex items-center gap-2">
-        <div className="rounded-2xl bg-indigo-600 p-2 text-white">
-          <Swords size={18} />
+    <section className="rounded-3xl border border-slate-800 bg-slate-950/40">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-3 rounded-3xl p-4 text-left hover:bg-slate-900/70"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="rounded-2xl bg-indigo-600 p-2 text-white">
+            <Swords size={18} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-slate-100">{roundKey === "R1" ? "Round 1" : "Round 2"}</h2>
+            <p className="truncate text-sm text-slate-400">
+              {heroes.map((hero) => normalizeHeroEntry(hero).name || "Unnamed").join(" · ")}
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-slate-100">{roundKey === "R1" ? "Round 1" : "Round 2"}</h2>
-          <p className="text-sm text-slate-400">Compact scout view: hero, HP, speed, artifact, sets, and notes.</p>
+
+        <div className="shrink-0 rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
+          {open ? "Collapse" : "Expand"}
         </div>
-      </div>
+      </button>
 
-      <Field
-        label={`${roundKey === "R1" ? "Round 1" : "Round 2"} Team Note`}
-        value={roundNote}
-        onChange={(value) => onRoundNoteChange(roundKey, value)}
-        placeholder="Optional note for this team"
-      />
-
-      <SpeedCalculator roundKey={roundKey} />
-
-      <div className="space-y-3">
-        {heroes.map((hero, index) => (
-          <HeroCard
-            key={`${roundKey}-${index}`}
-            roundKey={roundKey}
-            heroIndex={index}
-            hero={hero}
-            heroes={heroMaster}
-            artifacts={artifactMaster}
-            onHeroChange={onHeroChange}
+      {open && (
+        <div className="space-y-4 border-t border-slate-800 p-4">
+          <Field
+            label={`${roundKey === "R1" ? "Round 1" : "Round 2"} Team Note`}
+            value={roundNote}
+            onChange={(value) => onRoundNoteChange(roundKey, value)}
+            placeholder="Optional note for this team"
           />
-        ))}
-      </div>
+
+          <SpeedCalculator roundKey={roundKey} />
+
+          <div className="space-y-3">
+            {heroes.map((hero, index) => (
+              <HeroCard
+                key={`${roundKey}-${index}`}
+                roundKey={roundKey}
+                heroIndex={index}
+                hero={hero}
+                heroes={heroMaster}
+                artifacts={artifactMaster}
+                onHeroChange={onHeroChange}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
