@@ -758,12 +758,12 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
         <div className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">{roundKey}</div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 xl:grid-cols-[1.35fr_0.9fr]">
         <SearchableSelect label="Hero" value={normalizedHero.heroId} onChange={changeHero} options={heroOptions} placeholder="Search hero..." />
         <Field label="Custom name" value={normalizedHero.name} onChange={(value) => updateHero({ name: value, heroId: "" })} placeholder="e.g. Peira" />
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div className="mt-3 grid gap-3 xl:grid-cols-2">
         <Field
           label="HP"
           value={normalizedHero.stats.HP}
@@ -807,13 +807,13 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
                 key={setOption.name}
                 type="button"
                 onClick={() => toggleSet(setOption.name)}
-                className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-medium transition ${
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
                   active
                     ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
                     : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
                 }`}
               >
-                <AppIcon meta={setOption} size={24} />
+                <AppIcon meta={setOption} size={22} />
                 {setOption.name}
               </button>
             );
@@ -1183,6 +1183,7 @@ export default function EpicSevenGwTrackerApp() {
   const [selectedId, setSelectedId] = useState(null);
   const [status, setStatus] = useState("Starting SQLite database...");
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [savedEntriesOpen, setSavedEntriesOpen] = useState(false);
   const actionsMenuRef = useRef(null);
   const [temporaryScreenshots, setTemporaryScreenshots] = useState({
     R1: [],
@@ -1470,19 +1471,19 @@ export default function EpicSevenGwTrackerApp() {
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-slate-100 md:p-6">
       <div className="mx-auto max-w-[2400px] space-y-5 px-2">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-xl shadow-black/20 md:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <header className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-sm font-medium text-slate-300">
-                <Shield size={16} /> Epic Seven Guild War Tracker
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
+                <Shield size={14} /> Epic Seven Guild War Tracker
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-50 md:text-5xl">Epic Seven Guild War Scout App</h1>
-              <p className="mt-3 max-w-2xl text-slate-400">
-                Scout enemy defenses, calculate speed ranges, and export clean Discord notes.
+              <h1 className="text-2xl font-black tracking-tight text-slate-50 md:text-3xl">Epic Seven Guild War Scout</h1>
+              <p className="mt-1 max-w-2xl text-sm text-slate-400">
+                Scout defenses, calculate speed ranges, and export Discord notes.
               </p>
             </div>
 
-            <div ref={actionsMenuRef} className="relative flex items-start gap-2">
+            <div ref={actionsMenuRef} className="relative flex flex-wrap items-start gap-2">
               <button
                 onClick={newEntry}
                 className="inline-flex items-center rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm hover:bg-slate-800"
@@ -1498,15 +1499,25 @@ export default function EpicSevenGwTrackerApp() {
               </button>
 
               {actionsOpen && (
-                <div className="absolute right-0 top-12 z-30 w-56 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
+                <div className="absolute right-0 top-12 z-30 w-80 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
                   <button onClick={() => { saveEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Save className="mr-2 h-4 w-4" /> Save to SQLite
                   </button>
 
-                  <button onClick={() => {updateMasterData(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
+                  <button onClick={() => { updateMasterData(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Download className="mr-2 h-4 w-4" /> Update master data
                   </button>
-                  
+
+                  <label className="flex w-full cursor-pointer items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
+                    <Upload className="mr-2 h-4 w-4" /> Import heroes JSON
+                    <input type="file" accept="application/json" onChange={(event) => { importHeroMasterJson(event); setActionsOpen(false); }} className="hidden" />
+                  </label>
+
+                  <label className="flex w-full cursor-pointer items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
+                    <Upload className="mr-2 h-4 w-4" /> Import artifacts JSON
+                    <input type="file" accept="application/json" onChange={(event) => { importArtifactMasterJson(event); setActionsOpen(false); }} className="hidden" />
+                  </label>
+
                   <button onClick={() => { exportCurrentEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Download className="mr-2 h-4 w-4" /> Export entry
                   </button>
@@ -1516,7 +1527,7 @@ export default function EpicSevenGwTrackerApp() {
                   </button>
 
                   <label className="flex w-full cursor-pointer items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Upload className="mr-2 h-4 w-4" /> Import JSON
+                    <Upload className="mr-2 h-4 w-4" /> Import scout JSON
                     <input
                       type="file"
                       accept="application/json"
@@ -1527,94 +1538,95 @@ export default function EpicSevenGwTrackerApp() {
                       className="hidden"
                     />
                   </label>
+
+                  <button
+                    onClick={() => setSavedEntriesOpen((value) => !value)}
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800"
+                  >
+                    <Search className="mr-2 h-4 w-4" /> Saved entries
+                  </button>
+
+                  {savedEntriesOpen && (
+                    <div className="mt-2 rounded-xl border border-slate-800 bg-slate-950 p-2">
+                      <input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search saved opponents..."
+                        className="mb-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-indigo-500"
+                      />
+
+                      <div className="max-h-64 space-y-2 overflow-y-auto">
+                        {filteredEntries.length === 0 ? (
+                          <p className="rounded-xl bg-slate-900 p-3 text-sm text-slate-500">No saved opponents yet.</p>
+                        ) : (
+                          filteredEntries.map((item) => (
+                            <div
+                              key={item.id}
+                              className={`rounded-xl border p-3 transition ${
+                                selectedId === item.id ? "border-indigo-500 bg-slate-900" : "border-slate-800 bg-slate-900"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  loadEntry(item);
+                                  setActionsOpen(false);
+                                }}
+                                className="w-full text-left"
+                              >
+                                <p className="font-semibold text-slate-100">{item.opponent}</p>
+                                <p className="text-xs text-slate-500">Updated: {new Date(item.updatedAt).toLocaleString()}</p>
+                              </button>
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    loadEntry(item);
+                                    setActionsOpen(false);
+                                  }}
+                                  className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-slate-200"
+                                >
+                                  <RotateCcw className="mr-1 h-3 w-3" /> Load
+                                </button>
+                                <button onClick={() => deleteEntry(item.id)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-red-400">
+                                  <Trash2 className="mr-1 h-3 w-3" /> Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </header>
 
-        <div className="grid gap-4 xl:grid-cols-[210px_minmax(0,1fr)]">
-          <aside className="space-y-4">
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-              <div className="mb-4 flex items-center gap-2">
-                <Users size={18} />
-                <h2 className="font-bold text-slate-100">Opponent</h2>
-              </div>
-              <Field
-                label="Current opponent name"
-                value={entry.opponent}
-                onChange={(value) => setEntry((current) => ({ ...current, opponent: value }))}
-                placeholder="e.g. 315 lidi"
-              />
-              <div className="mt-3">
-                <Field
-                  label="Note"
-                  value={entry.note}
-                  onChange={(value) => setEntry((current) => ({ ...current, note: value }))}
-                  placeholder="Optional scouting note"
-                />
-              </div>
-            </section>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Users size={18} />
+              <h2 className="font-bold text-slate-100">Opponent</h2>
+            </div>
+            <p className="text-xs text-slate-500">{status}</p>
+          </div>
 
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-              <div className="mb-3 flex items-center gap-2">
-                <DatabaseIcon size={17} />
-                <h2 className="font-bold text-slate-100">SQLite</h2>
-              </div>
-              <p className="mb-3 text-xs font-medium text-slate-400">{status}</p>
-              <div className="flex flex-col gap-2">
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 shadow-sm hover:bg-slate-800">
-                  <Upload className="mr-2 h-3 w-3" /> Import heroes
-                  <input type="file" accept="application/json" onChange={importHeroMasterJson} className="hidden" />
-                </label>
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 shadow-sm hover:bg-slate-800">
-                  <Upload className="mr-2 h-3 w-3" /> Import artifacts
-                  <input type="file" accept="application/json" onChange={importArtifactMasterJson} className="hidden" />
-                </label>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-              <div className="mb-3 flex items-center gap-2">
-                <Search size={17} />
-                <h2 className="font-bold text-slate-100">Saved entries</h2>
-              </div>
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search..."
-                className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-indigo-500"
-              />
-
-              <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
-                {filteredEntries.length === 0 ? (
-                  <p className="rounded-2xl bg-slate-950 p-4 text-sm text-slate-500">No saved opponents yet.</p>
-                ) : (
-                  filteredEntries.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`rounded-2xl border p-3 transition ${
-                        selectedId === item.id ? "border-indigo-500 bg-slate-950" : "border-slate-800 bg-slate-950"
-                      }`}
-                    >
-                      <button type="button" onClick={() => loadEntry(item)} className="w-full text-left">
-                        <p className="font-semibold text-slate-100">{item.opponent}</p>
-                        <p className="text-xs text-slate-500">Updated: {new Date(item.updatedAt).toLocaleString()}</p>
-                      </button>
-                      <div className="mt-2 flex gap-2">
-                        <button onClick={() => loadEntry(item)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-slate-200">
-                          <RotateCcw className="mr-1 h-3 w-3" /> Load
-                        </button>
-                        <button onClick={() => deleteEntry(item.id)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-red-400">
-                          <Trash2 className="mr-1 h-3 w-3" /> Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-          </aside>
+          <div className="grid gap-3 lg:grid-cols-[1fr_2fr]">
+            <Field
+              label="Current opponent name"
+              value={entry.opponent}
+              onChange={(value) => setEntry((current) => ({ ...current, opponent: value }))}
+              placeholder="e.g. 315 lidi"
+            />
+            <Field
+              label="Note"
+              value={entry.note}
+              onChange={(value) => setEntry((current) => ({ ...current, note: value }))}
+              placeholder="Optional scouting note"
+            />
+          </div>
+        </section>
 
           <div className="space-y-6">
             <div className="grid gap-4 2xl:grid-cols-2">
@@ -1641,7 +1653,6 @@ export default function EpicSevenGwTrackerApp() {
 
             <SummaryTable entry={entry} artifactMaster={artifacts} onCopyDiscord={copyDiscord} />
           </div>
-        </div>
       </div>
     </main>
   );
