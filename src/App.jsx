@@ -9,7 +9,6 @@ import {
 
 const DB_URL = "sqlite:e7_gw_tracker.db";
 
-
 // Do NOT use the service_role key in the app.
 const SUPABASE_URL = "https://xihgqvybglezyyargzvm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpaGdxdnliZ2xlenl5YXJnenZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMDUxMzgsImV4cCI6MjA5NDc4MTEzOH0.H4_xRJ3csHyhbio5WDc4o6t3Ui98WFRgKMQl8qr_TNM";
@@ -534,9 +533,7 @@ function getRoundDefenseHeroNames(entry, roundKey) {
 }
 
 async function fetchCounterGuidesForDefense(defenseHeroes) {
-  const names = defenseHeroes
-    .map((name) => String(name || "").trim())
-    .filter(Boolean);
+  const names = defenseHeroes.map((name) => String(name || "").trim()).filter(Boolean);
 
   if (names.length === 0) {
     return [];
@@ -548,15 +545,7 @@ async function fetchCounterGuidesForDefense(defenseHeroes) {
     .from("counter_guides")
     .select("id, defense_heroes, offense_heroes, notes, rating, author, source, created_at")
     .eq("is_public", true)
-
-    // Order-independent exact team match:
-    // DB defense must contain all searched heroes.
     .contains("defense_heroes", names)
-
-    // Searched heroes must contain all DB defense heroes.
-    // This prevents a 2-hero search from matching a 3-hero defense by accident.
-    .containedBy("defense_heroes", names)
-
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -1026,6 +1015,7 @@ function calculateEnemySpeed(mySpeedRaw, enemyCrRaw, mode) {
 }
 
 function SpeedCalculator({ roundKey }) {
+  const [open, setOpen] = useState(false);
   const [mySpeed, setMySpeed] = useState("");
   const [enemyCr, setEnemyCr] = useState("");
   const [mode, setMode] = useState("first");
@@ -1041,97 +1031,111 @@ function SpeedCalculator({ roundKey }) {
       : "Estimated speed = my speed × enemy current CR%";
 
   const crRngText =
-    "Start CR RNG can shift the estimate because each unit can start with 0–5% CR. The two extremes are: I start at 0% and enemy starts at 5%, or I start at 5% and enemy starts at 0%.";
+    "Start CR RNG can shift the estimate because each unit can start with 0–5% CR.";
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-      <div className="mb-4 flex flex-col gap-1">
-        <h3 className="font-bold text-slate-100">
-          Speed Calculator · {roundKey === "R1" ? "Round 1" : "Round 2"}
-        </h3>
-        <p className="text-xs text-slate-400">
-          Estimate enemy speed from CR position.
-        </p>
-      </div>
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left hover:bg-slate-800/70"
+      >
+        <div>
+          <h3 className="font-bold text-slate-100">
+            Speed Calculator · {roundKey === "R1" ? "Round 1" : "Round 2"}
+          </h3>
+          <p className="text-xs text-slate-400">
+            Estimate enemy speed from CR position.
+          </p>
+        </div>
 
-      <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr]">
-        <Field
-          label="My unit speed"
-          value={mySpeed}
-          onChange={setMySpeed}
-          placeholder="e.g. 300"
-        />
+        <div className="shrink-0 rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
+          {open ? "Hide" : "Show"}
+        </div>
+      </button>
 
-        <Field
-          label="Enemy CR %"
-          value={enemyCr}
-          onChange={setEnemyCr}
-          placeholder={mode === "second" ? "e.g. 20" : "e.g. 85"}
-        />
+      {open && (
+        <div className="space-y-4 border-t border-slate-800 p-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr]">
+            <Field
+              label="My unit speed"
+              value={mySpeed}
+              onChange={setMySpeed}
+              placeholder="e.g. 300"
+            />
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-400">
-            Situation
-          </span>
-          <select
-            value={mode}
-            onChange={(event) => setMode(event.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
-          >
-            <option value="first">I go first</option>
-            <option value="second">I go second / enemy already moved</option>
-          </select>
-        </label>
-      </div>
+            <Field
+              label="Enemy CR %"
+              value={enemyCr}
+              onChange={setEnemyCr}
+              placeholder={mode === "second" ? "e.g. 20" : "e.g. 85"}
+            />
 
-      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
-        {!result.valid ? (
-          <p className="text-sm text-slate-500">{result.message}</p>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-slate-400">{formulaText}</p>
-
-            <p className="text-2xl font-black text-slate-50">
-              Estimated speed:{" "}
-              <span className="text-indigo-400">
-                {result.estimatedSpeedRounded}
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-400">
+                Situation
               </span>
-            </p>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                With 0–5% start CR RNG
-              </p>
-
-              <p className="text-sm text-slate-300">
-                Possible range:{" "}
-                <span className="font-bold text-emerald-400">
-                  {result.lowestPossibleSpeedRounded}
-                </span>{" "}
-                –{" "}
-                <span className="font-bold text-red-400">
-                  {result.highestPossibleSpeedRounded}
-                </span>
-              </p>
-
-              <p className="mt-1 text-xs text-slate-500">
-                Exact range: {result.lowestPossibleSpeed.toFixed(2)} –{" "}
-                {result.highestPossibleSpeed.toFixed(2)}
-              </p>
-            </div>
-
-            <div className="space-y-1 text-xs text-slate-500">
-              <p>
-                Effective enemy CR used:{" "}
-                <span className="text-slate-300">
-                  {result.displayedEnemyCr.toFixed(2)}%
-                </span>
-              </p>
-              <p>{crRngText}</p>
-            </div>
+              <select
+                value={mode}
+                onChange={(event) => setMode(event.target.value)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
+              >
+                <option value="first">I go first</option>
+                <option value="second">I go second / enemy already moved</option>
+              </select>
+            </label>
           </div>
-        )}
-      </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            {!result.valid ? (
+              <p className="text-sm text-slate-500">{result.message}</p>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-400">{formulaText}</p>
+
+                <p className="text-2xl font-black text-slate-50">
+                  Estimated speed:{" "}
+                  <span className="text-indigo-400">
+                    {result.estimatedSpeedRounded}
+                  </span>
+                </p>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    With 0–5% start CR RNG
+                  </p>
+
+                  <p className="text-sm text-slate-300">
+                    Possible range:{" "}
+                    <span className="font-bold text-emerald-400">
+                      {result.lowestPossibleSpeedRounded}
+                    </span>{" "}
+                    –{" "}
+                    <span className="font-bold text-red-400">
+                      {result.highestPossibleSpeedRounded}
+                    </span>
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Exact range: {result.lowestPossibleSpeed.toFixed(2)} –{" "}
+                    {result.highestPossibleSpeed.toFixed(2)}
+                  </p>
+                </div>
+
+                <div className="space-y-1 text-xs text-slate-500">
+                  <p>
+                    Effective enemy CR used:{" "}
+                    <span className="text-slate-300">
+                      {result.displayedEnemyCr.toFixed(2)}%
+                    </span>
+                  </p>
+                  <p>{crRngText}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1603,6 +1607,7 @@ export default function EpicSevenGwTrackerApp() {
   const [status, setStatus] = useState("Starting SQLite database...");
   const [actionsOpen, setActionsOpen] = useState(false);
   const [savedEntriesOpen, setSavedEntriesOpen] = useState(false);
+  const [activePage, setActivePage] = useState("scout");
   const [roundOpen, setRoundOpen] = useState({ R1: true, R2: true });
   const actionsMenuRef = useRef(null);
   const [temporaryScreenshots, setTemporaryScreenshots] = useState({
@@ -1942,19 +1947,7 @@ export default function EpicSevenGwTrackerApp() {
 
                   <button onClick={() => { updateMasterData(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Download className="mr-2 h-4 w-4" /> Update master data
-                  </button>
-
-                  <label className="flex w-full cursor-pointer items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Upload className="mr-2 h-4 w-4" /> Import heroes JSON
-                    <input type="file" accept="application/json" onChange={(event) => { importHeroMasterJson(event); setActionsOpen(false); }} className="hidden" />
-                  </label>
-
-                  <label className="flex w-full cursor-pointer items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Upload className="mr-2 h-4 w-4" /> Import artifacts JSON
-                    <input type="file" accept="application/json" onChange={(event) => { importArtifactMasterJson(event); setActionsOpen(false); }} className="hidden" />
-                  </label>
-
-                  <button onClick={() => { exportCurrentEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
+                  </button>                  <button onClick={() => { exportCurrentEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
                     <Download className="mr-2 h-4 w-4" /> Export entry
                   </button>
 
@@ -2039,6 +2032,30 @@ export default function EpicSevenGwTrackerApp() {
           </div>
         </header>
 
+        <nav className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-xl shadow-black/20 md:grid-cols-3">
+          {[
+            { id: "scout", label: "Scout" },
+            { id: "counters", label: "Counters" },
+            { id: "settings", label: "Settings" },
+          ].map((page) => (
+            <button
+              key={page.id}
+              type="button"
+              onClick={() => setActivePage(page.id)}
+              className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
+                activePage === page.id
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+              }`}
+            >
+              {page.label}
+            </button>
+          ))}
+        </nav>
+
+
+        {activePage === "scout" && (
+          <>
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -2093,10 +2110,47 @@ export default function EpicSevenGwTrackerApp() {
               />
             </div>
 
-            <CounterSuggestions entry={entry} heroMaster={heroes} />
-
             <SummaryTable entry={entry} artifactMaster={artifacts} onCopyDiscord={copyDiscord} />
           </div>
+
+          </>
+        )}
+
+        {activePage === "counters" && (
+          <CounterSuggestions entry={entry} heroMaster={heroes} />
+        )}
+
+        {activePage === "settings" && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+            <div className="mb-4">
+              <h2 className="font-bold text-slate-100">Settings</h2>
+              <p className="text-sm text-slate-400">Status, data updates, and import/export actions.</p>
+            </div>
+
+            <div className="rounded-xl bg-slate-950 p-3 text-sm text-slate-400">
+              <p>{status}</p>
+            </div>
+
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <button onClick={updateMasterData} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800">
+                Update master data
+              </button>
+
+              <button onClick={exportCurrentEntry} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800">
+                Export current entry
+              </button>
+
+              <button onClick={exportAllEntries} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800">
+                Export backup
+              </button>
+
+              <label className="cursor-pointer rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm text-slate-100 hover:bg-slate-800">
+                Import scout JSON
+                <input type="file" accept="application/json" onChange={importJson} className="hidden" />
+              </label>
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
