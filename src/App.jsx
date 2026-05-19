@@ -603,6 +603,25 @@ function RestrictedField({ label, value, onChange, placeholder = "", allowedChar
       <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
       <input
         value={value}
+        onBeforeInput={(event) => {
+          const data = event.data ?? "";
+          if (data && sanitizeRestrictedInput(data, allowedCharacters) !== data) {
+            event.preventDefault();
+          }
+        }}
+        onPaste={(event) => {
+          event.preventDefault();
+          const pasted = event.clipboardData.getData("text");
+          const currentTarget = event.currentTarget;
+          const start = currentTarget.selectionStart ?? String(value || "").length;
+          const end = currentTarget.selectionEnd ?? String(value || "").length;
+          const currentValue = String(value || "");
+          const nextValue =
+            currentValue.slice(0, start) +
+            sanitizeRestrictedInput(pasted, allowedCharacters) +
+            currentValue.slice(end);
+          onChange(sanitizeRestrictedInput(nextValue, allowedCharacters));
+        }}
         onChange={(event) => onChange(sanitizeRestrictedInput(event.target.value, allowedCharacters))}
         placeholder={placeholder}
         inputMode="text"
@@ -815,18 +834,20 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
               placeholder="Search artifact..."
             />
 
-            <Field
+            <RestrictedField
               label="HP"
               value={normalizedHero.stats.HP}
               onChange={(value) => updateStat("HP", value)}
-              placeholder="e.g. 25000"
+              placeholder="e.g. 25k, ~25000, >20k"
+              allowedCharacters={HP_ALLOWED_CHARACTERS}
             />
 
-            <Field
+            <RestrictedField
               label="Speed"
               value={normalizedHero.stats.Speed}
               onChange={(value) => updateStat("Speed", value)}
-              placeholder="e.g. 285+"
+              placeholder="e.g. 285+, ~250, >270"
+              allowedCharacters={SPEED_ALLOWED_CHARACTERS}
             />
           </div>
 
