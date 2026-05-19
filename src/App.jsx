@@ -1,14 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import { createClient } from "@supabase/supabase-js";
 import {
   Plus, Save, Search, Trash2, RotateCcw, Swords, Shield, Users, Image as ImageIcon, X,
-  Download, Upload, Copy, FolderArchive, MoreVertical, Database as DatabaseIcon,
+  Download, Upload, Copy, FolderArchive, Database as DatabaseIcon,
 } from "lucide-react";
 
 const DB_URL = "sqlite:e7_gw_tracker.db";
 
+// Put your Supabase Project URL and anon/public key here.
 // Do NOT use the service_role key in the app.
 const SUPABASE_URL = "https://xihgqvybglezyyargzvm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpaGdxdnliZ2xlenl5YXJnenZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMDUxMzgsImV4cCI6MjA5NDc4MTEzOH0.H4_xRJ3csHyhbio5WDc4o6t3Ui98WFRgKMQl8qr_TNM";
@@ -1014,48 +1015,125 @@ function calculateEnemySpeed(mySpeedRaw, enemyCrRaw, mode) {
   };
 }
 
-function SpeedCalculator({ roundKey }) {
-  const [open, setOpen] = useState(false);
+function SpeedCalculator({ entry, onHeroChange }) {
+  const [targetRound, setTargetRound] = useState("R1");
+  const [targetHeroIndex, setTargetHeroIndex] = useState(0);
   const [mySpeed, setMySpeed] = useState("");
   const [enemyCr, setEnemyCr] = useState("");
   const [mode, setMode] = useState("first");
+  const [status, setStatus] = useState("Calculate speed, then save it directly to a selected hero.");
 
   const result = useMemo(
     () => calculateEnemySpeed(mySpeed, enemyCr, mode),
     [mySpeed, enemyCr, mode]
   );
 
+  const selectedHero = normalizeHeroEntry(entry.rounds?.[targetRound]?.[targetHeroIndex]);
+
   const formulaText =
     mode === "second"
       ? "Estimated speed = my speed × (100% + enemy current CR%)"
       : "Estimated speed = my speed × enemy current CR%";
 
-  const crRngText =
-    "Start CR RNG can shift the estimate because each unit can start with 0–5% CR.";
+  const applyEstimatedSpeed = () => {
+    if (!result.valid) {
+      setStatus(result.message);
+      return;
+    }
+
+    const currentHero = normalizeHeroEntry(entry.rounds[targetRound][targetHeroIndex]);
+
+    onHeroChange(targetRound, targetHeroIndex, {
+      ...currentHero,
+      stats: {
+        ...currentHero.stats,
+        Speed: String(result.estimatedSpeedRounded),
+      },
+    });
+
+    setStatus(`Applied ${result.estimatedSpeedRounded} speed to ${currentHero.name || `Hero ${targetHeroIndex + 1}`}.`);
+  };
+
+  const addRangeToNotes = () => {
+    if (!result.valid) {
+      setStatus(result.message);
+      return;
+    }
+
+    const currentHero = normalizeHeroEntry(entry.rounds[targetRound][targetHeroIndex]);
+    const note = `Estimated speed ${result.estimatedSpeedRounded} (${result.lowestPossibleSpeedRounded}-${result.highestPossibleSpeedRounded} with CR RNG)`;
+    const nextNotes = currentHero.additionalNotes ? `${currentHero.additionalNotes}; ${note}` : note;
+
+    onHeroChange(targetRound, targetHeroIndex, {
+      ...currentHero,
+      additionalNotes: nextNotes,
+    });
+
+    setStatus(`Added speed range note to ${currentHero.name || `Hero ${targetHeroIndex + 1}`}.`);
+  };
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 shadow-xl shadow-black/20">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left hover:bg-slate-800/70"
-      >
+    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h3 className="font-bold text-slate-100">
-            Speed Calculator · {roundKey === "R1" ? "Round 1" : "Round 2"}
-          </h3>
-          <p className="text-xs text-slate-400">
-            Estimate enemy speed from CR position.
+          <h2 className="font-bold text-slate-100">Speed Calculator</h2>
+          <p className="text-sm text-slate-400">
+            Calculate enemy speed from CR and save the result to a specific scouted hero.
           </p>
         </div>
 
-        <div className="shrink-0 rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
-          {open ? "Hide" : "Show"}
+        <div className="flex flex-wrap gap-2">
+          {["R1", "R2"].map((roundKey) => (
+            <button
+              key={roundKey}
+              type="button"
+              onClick={() => {
+                setTargetRound(roundKey);
+                setTargetHeroIndex(0);
+              }}
+              className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                targetRound === roundKey
+                  ? "bg-indigo-600 text-white"
+                  : "border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
+              }`}
+            >
+              {roundKey === "R1" ? "Round 1" : "Round 2"}
+            </button>
+          ))}
         </div>
-      </button>
+      </div>
 
-      {open && (
-        <div className="space-y-4 border-t border-slate-800 p-4">
+      <div className="mb-4 grid gap-2 rounded-2xl border border-slate-800 bg-slate-950 p-2 md:grid-cols-4">
+        {(entry.rounds?.[targetRound] ?? []).map((hero, index) => {
+          const normalizedHero = normalizeHeroEntry(hero);
+          return (
+            <button
+              key={`${targetRound}-speed-target-${index}`}
+              type="button"
+              onClick={() => setTargetHeroIndex(index)}
+              className={`rounded-xl px-3 py-3 text-left text-sm transition ${
+                targetHeroIndex === index
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase opacity-70">Hero {index + 1}</p>
+              <p className="truncate font-bold">{normalizedHero.name || "Unnamed Hero"}</p>
+              <p className="truncate text-xs opacity-70">Current SPD {normalizedHero.stats.Speed || "?"}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="mb-4">
+            <h3 className="font-bold text-slate-100">
+              Target: {targetRound} · {selectedHero.name || `Hero ${targetHeroIndex + 1}`}
+            </h3>
+            <p className="text-xs text-slate-500">{status}</p>
+          </div>
+
           <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr]">
             <Field
               label="My unit speed"
@@ -1086,57 +1164,77 @@ function SpeedCalculator({ roundKey }) {
             </label>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-            {!result.valid ? (
-              <p className="text-sm text-slate-500">{result.message}</p>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-slate-400">{formulaText}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={applyEstimatedSpeed}
+              disabled={!result.valid}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Apply speed to hero
+            </button>
 
-                <p className="text-2xl font-black text-slate-50">
-                  Estimated speed:{" "}
-                  <span className="text-indigo-400">
-                    {result.estimatedSpeedRounded}
+            <button
+              type="button"
+              onClick={addRangeToNotes}
+              disabled={!result.valid}
+              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Add range to notes
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          {!result.valid ? (
+            <p className="text-sm text-slate-500">{result.message}</p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-400">{formulaText}</p>
+
+              <p className="text-2xl font-black text-slate-50">
+                Estimated speed:{" "}
+                <span className="text-indigo-400">
+                  {result.estimatedSpeedRounded}
+                </span>
+              </p>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  With 0–5% start CR RNG
+                </p>
+
+                <p className="text-sm text-slate-300">
+                  Possible range:{" "}
+                  <span className="font-bold text-emerald-400">
+                    {result.lowestPossibleSpeedRounded}
+                  </span>{" "}
+                  –{" "}
+                  <span className="font-bold text-red-400">
+                    {result.highestPossibleSpeedRounded}
                   </span>
                 </p>
 
-                <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    With 0–5% start CR RNG
-                  </p>
-
-                  <p className="text-sm text-slate-300">
-                    Possible range:{" "}
-                    <span className="font-bold text-emerald-400">
-                      {result.lowestPossibleSpeedRounded}
-                    </span>{" "}
-                    –{" "}
-                    <span className="font-bold text-red-400">
-                      {result.highestPossibleSpeedRounded}
-                    </span>
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Exact range: {result.lowestPossibleSpeed.toFixed(2)} –{" "}
-                    {result.highestPossibleSpeed.toFixed(2)}
-                  </p>
-                </div>
-
-                <div className="space-y-1 text-xs text-slate-500">
-                  <p>
-                    Effective enemy CR used:{" "}
-                    <span className="text-slate-300">
-                      {result.displayedEnemyCr.toFixed(2)}%
-                    </span>
-                  </p>
-                  <p>{crRngText}</p>
-                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Exact range: {result.lowestPossibleSpeed.toFixed(2)} –{" "}
+                  {result.highestPossibleSpeed.toFixed(2)}
+                </p>
               </div>
-            )}
-          </div>
+
+              <div className="space-y-1 text-xs text-slate-500">
+                <p>
+                  Effective enemy CR used:{" "}
+                  <span className="text-slate-300">
+                    {result.displayedEnemyCr.toFixed(2)}%
+                  </span>
+                </p>
+                <p>Start CR RNG can shift the estimate because each unit can start with 0–5% CR.</p>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -1185,7 +1283,6 @@ function RoundPanel({
             placeholder="Optional note for this team"
           />
 
-          <SpeedCalculator roundKey={roundKey} />
 
           <div className={wideHeroLayout ? "grid gap-3 xl:grid-cols-3" : "space-y-3"}>
             {heroes.map((hero, index) => (
@@ -1605,25 +1702,13 @@ export default function EpicSevenGwTrackerApp() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [status, setStatus] = useState("Starting SQLite database...");
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const [savedEntriesOpen, setSavedEntriesOpen] = useState(false);
   const [activePage, setActivePage] = useState("scout");
   const [roundOpen, setRoundOpen] = useState({ R1: true, R2: true });
-  const actionsMenuRef = useRef(null);
   const [temporaryScreenshots, setTemporaryScreenshots] = useState({
     R1: [],
     R2: [],
   });
 
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (!actionsMenuRef.current) return;
-      if (!actionsMenuRef.current.contains(event.target)) setActionsOpen(false);
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   async function refreshList() {
     const opponents = await loadOpponents();
@@ -1924,117 +2009,19 @@ export default function EpicSevenGwTrackerApp() {
               </p>
             </div>
 
-            <div ref={actionsMenuRef} className="relative flex flex-wrap items-start gap-2">
-              <button
-                onClick={newEntry}
-                className="inline-flex items-center rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm hover:bg-slate-800"
-              >
-                <Plus className="mr-2 h-4 w-4" /> New opponent
-              </button>
-
-              <button
-                onClick={() => setActionsOpen((value) => !value)}
-                className="inline-flex items-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
-              >
-                <MoreVertical className="mr-2 h-4 w-4" /> Actions
-              </button>
-
-              {actionsOpen && (
-                <div className="absolute right-0 top-12 z-30 w-80 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
-                  <button onClick={() => { saveEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Save className="mr-2 h-4 w-4" /> Save to SQLite
-                  </button>
-
-                  <button onClick={() => { updateMasterData(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Download className="mr-2 h-4 w-4" /> Update master data
-                  </button>                  <button onClick={() => { exportCurrentEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Download className="mr-2 h-4 w-4" /> Export entry
-                  </button>
-
-                  <button onClick={() => { exportAllEntries(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <FolderArchive className="mr-2 h-4 w-4" /> Export backup
-                  </button>
-
-                  <label className="flex w-full cursor-pointer items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Upload className="mr-2 h-4 w-4" /> Import scout JSON
-                    <input
-                      type="file"
-                      accept="application/json"
-                      onChange={(event) => {
-                        importJson(event);
-                        setActionsOpen(false);
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-
-                  <button
-                    onClick={() => setSavedEntriesOpen((value) => !value)}
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800"
-                  >
-                    <Search className="mr-2 h-4 w-4" /> Saved entries
-                  </button>
-
-                  {savedEntriesOpen && (
-                    <div className="mt-2 rounded-xl border border-slate-800 bg-slate-950 p-2">
-                      <input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search saved opponents..."
-                        className="mb-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                      />
-
-                      <div className="max-h-64 space-y-2 overflow-y-auto">
-                        {filteredEntries.length === 0 ? (
-                          <p className="rounded-xl bg-slate-900 p-3 text-sm text-slate-500">No saved opponents yet.</p>
-                        ) : (
-                          filteredEntries.map((item) => (
-                            <div
-                              key={item.id}
-                              className={`rounded-xl border p-3 transition ${
-                                selectedId === item.id ? "border-indigo-500 bg-slate-900" : "border-slate-800 bg-slate-900"
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  loadEntry(item);
-                                  setActionsOpen(false);
-                                }}
-                                className="w-full text-left"
-                              >
-                                <p className="font-semibold text-slate-100">{item.opponent}</p>
-                                <p className="text-xs text-slate-500">Updated: {new Date(item.updatedAt).toLocaleString()}</p>
-                              </button>
-                              <div className="mt-2 flex gap-2">
-                                <button
-                                  onClick={() => {
-                                    loadEntry(item);
-                                    setActionsOpen(false);
-                                  }}
-                                  className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-slate-200"
-                                >
-                                  <RotateCcw className="mr-1 h-3 w-3" /> Load
-                                </button>
-                                <button onClick={() => deleteEntry(item.id)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-red-400">
-                                  <Trash2 className="mr-1 h-3 w-3" /> Delete
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <button
+              onClick={newEntry}
+              className="inline-flex w-fit items-center rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm hover:bg-slate-800"
+            >
+              <Plus className="mr-2 h-4 w-4" /> New opponent
+            </button>
           </div>
         </header>
 
         <nav className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-xl shadow-black/20 md:grid-cols-3">
           {[
             { id: "scout", label: "Scout" },
+            { id: "speed", label: "Speed Calc" },
             { id: "counters", label: "Counters" },
             { id: "settings", label: "Settings" },
           ].map((page) => (
@@ -2116,6 +2103,11 @@ export default function EpicSevenGwTrackerApp() {
           </>
         )}
 
+
+        {activePage === "speed" && (
+          <SpeedCalculator entry={entry} onHeroChange={updateHero} />
+        )}
+
         {activePage === "counters" && (
           <CounterSuggestions entry={entry} heroMaster={heroes} />
         )}
@@ -2124,14 +2116,18 @@ export default function EpicSevenGwTrackerApp() {
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
             <div className="mb-4">
               <h2 className="font-bold text-slate-100">Settings</h2>
-              <p className="text-sm text-slate-400">Status, data updates, and import/export actions.</p>
+              <p className="text-sm text-slate-400">Saved entries, status, data updates, and import/export actions.</p>
             </div>
 
             <div className="rounded-xl bg-slate-950 p-3 text-sm text-slate-400">
               <p>{status}</p>
             </div>
 
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+              <button onClick={saveEntry} className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                Save to SQLite
+              </button>
+
               <button onClick={updateMasterData} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800">
                 Update master data
               </button>
@@ -2148,6 +2144,48 @@ export default function EpicSevenGwTrackerApp() {
                 Import scout JSON
                 <input type="file" accept="application/json" onChange={importJson} className="hidden" />
               </label>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Search size={17} />
+                <h3 className="font-bold text-slate-100">Saved entries</h3>
+              </div>
+
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search saved opponents..."
+                className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-indigo-500"
+              />
+
+              <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+                {filteredEntries.length === 0 ? (
+                  <p className="rounded-2xl bg-slate-900 p-4 text-sm text-slate-500">No saved opponents yet.</p>
+                ) : (
+                  filteredEntries.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-2xl border p-3 transition ${
+                        selectedId === item.id ? "border-indigo-500 bg-slate-900" : "border-slate-800 bg-slate-900"
+                      }`}
+                    >
+                      <button type="button" onClick={() => loadEntry(item)} className="w-full text-left">
+                        <p className="font-semibold text-slate-100">{item.opponent}</p>
+                        <p className="text-xs text-slate-500">Updated: {new Date(item.updatedAt).toLocaleString()}</p>
+                      </button>
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={() => loadEntry(item)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-slate-200">
+                          <RotateCcw className="mr-1 h-3 w-3" /> Load
+                        </button>
+                        <button onClick={() => deleteEntry(item.id)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-red-400">
+                          <Trash2 className="mr-1 h-3 w-3" /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </section>
         )}
