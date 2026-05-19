@@ -717,7 +717,6 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
       searchText: `${artifact.name} ${artifact.class || "Universal"} ${artifact.rarity || ""}`.toLowerCase(),
     }));
 
-  const classOptions = CLASS_OPTIONS.map((item) => ({ value: item.name, label: item.name }));
   const classMeta = getClassMeta(normalizedHero.class);
 
   const updateHero = (patch) => onHeroChange(roundKey, heroIndex, { ...normalizedHero, ...patch });
@@ -746,27 +745,40 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
     });
   };
 
-  const changeClass = (nextClass) => {
-    updateHero({ class: nextClass, heroId: "", artifactId: "" });
-  };
-
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hero {heroIndex + 1}</p>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-100">
-            <AppIcon meta={classMeta} />
-            <span>{normalizedHero.name || "Unnamed Hero"}</span>
+          <h3 className="flex items-center gap-2 text-base font-semibold text-slate-100">
+            <AppIcon meta={classMeta} size={18} />
+            <span className="truncate">{normalizedHero.name || "Unnamed Hero"}</span>
           </h3>
         </div>
         <div className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">{roundKey}</div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <SearchableSelect label="Hero database" value={normalizedHero.heroId} onChange={changeHero} options={heroOptions} placeholder="Search hero..." />
-        <Field label="Custom hero name" value={normalizedHero.name} onChange={(value) => updateHero({ name: value, heroId: "" })} placeholder="e.g. Peira" />
-        <SelectField label="Class" value={normalizedHero.class} onChange={changeClass} options={classOptions} />
+        <SearchableSelect label="Hero" value={normalizedHero.heroId} onChange={changeHero} options={heroOptions} placeholder="Search hero..." />
+        <Field label="Custom name" value={normalizedHero.name} onChange={(value) => updateHero({ name: value, heroId: "" })} placeholder="e.g. Peira" />
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <Field
+          label="HP"
+          value={normalizedHero.stats.HP}
+          onChange={(value) => updateStat("HP", value)}
+          placeholder="e.g. 25000"
+        />
+        <Field
+          label="Speed"
+          value={normalizedHero.stats.Speed}
+          onChange={(value) => updateStat("Speed", value)}
+          placeholder="e.g. 285+"
+        />
+      </div>
+
+      <div className="mt-3">
         <SearchableSelect
           label={`Artifact (${normalizedHero.class})`}
           value={normalizedHero.artifactId}
@@ -776,24 +788,12 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
         />
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {STAT_FIELDS.map((stat) => (
-          <Field
-            key={stat}
-            label={stat}
-            value={normalizedHero.stats[stat]}
-            onChange={(value) => updateStat(stat, value)}
-            placeholder={stat === "Speed" ? "e.g. 285+" : "Value"}
-          />
-        ))}
-      </div>
-
       <div className="mt-3">
         <Field
           label="Additional Notes"
           value={normalizedHero.additionalNotes}
           onChange={(value) => updateHero({ additionalNotes: value })}
-          placeholder="e.g. opener, slower than Ran, speed contest, unknown, artifact proc"
+          placeholder="Optional note"
         />
       </div>
 
@@ -813,7 +813,7 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
                     : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
                 }`}
               >
-                <AppIcon meta={setOption} size={28} />
+                <AppIcon meta={setOption} size={24} />
                 {setOption.name}
               </button>
             );
@@ -984,38 +984,29 @@ function SpeedCalculator({ roundKey }) {
   );
 }
 
-function RoundPanel({roundKey,heroes,heroMaster,artifactMaster,roundNote,screenshots,onAddScreenshots,onRemoveScreenshot,onRoundNoteChange,onHeroChange,}) {
+function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, onRoundNoteChange, onHeroChange }) {
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-4">
       <div className="flex items-center gap-2">
         <div className="rounded-2xl bg-indigo-600 p-2 text-white">
           <Swords size={18} />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-100">Round {roundKey === "R1" ? "1" : "2"}</h2>
-          <p className="text-sm text-slate-400">Three heroes with stats, custom set icons, and class-based artifact selection.</p>
+          <h2 className="text-xl font-bold text-slate-100">{roundKey === "R1" ? "Round 1" : "Round 2"}</h2>
+          <p className="text-sm text-slate-400">Compact scout view: hero, HP, speed, artifact, sets, and notes.</p>
         </div>
       </div>
 
       <Field
-        label={`Round ${roundKey === "R1" ? "1" : "2"} Team Note`}
+        label={`${roundKey === "R1" ? "Round 1" : "Round 2"} Team Note`}
         value={roundNote}
         onChange={(value) => onRoundNoteChange(roundKey, value)}
         placeholder="Optional note for this team"
       />
-      
-      {/*
-      <TemporaryScreenshots
-       roundKey={roundKey}
-       screenshots={screenshots}
-       onAddScreenshots={onAddScreenshots}
-       onRemoveScreenshot={onRemoveScreenshot}
-     />
-     */}
 
       <SpeedCalculator roundKey={roundKey} />
 
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="space-y-3">
         {heroes.map((hero, index) => (
           <HeroCard
             key={`${roundKey}-${index}`}
@@ -1626,31 +1617,27 @@ export default function EpicSevenGwTrackerApp() {
           </aside>
 
           <div className="space-y-6">
-            <RoundPanel
-              roundKey="R1"
-              heroes={entry.rounds.R1}
-              heroMaster={heroes}
-              artifactMaster={artifacts}
-              roundNote={entry.roundNotes?.R1 ?? ""}
-              onRoundNoteChange={updateRoundNote}
-              screenshots={temporaryScreenshots.R1}
-              onAddScreenshots={addTemporaryScreenshots}
-              onRemoveScreenshot={removeTemporaryScreenshot}
-              onHeroChange={updateHero}
-            />
+            <div className="grid gap-4 2xl:grid-cols-2">
+              <RoundPanel
+                roundKey="R1"
+                heroes={entry.rounds.R1}
+                heroMaster={heroes}
+                artifactMaster={artifacts}
+                roundNote={entry.roundNotes?.R1 ?? ""}
+                onRoundNoteChange={updateRoundNote}
+                onHeroChange={updateHero}
+              />
 
-            <RoundPanel
-              roundKey="R2"
-              heroes={entry.rounds.R2}
-              heroMaster={heroes}
-              artifactMaster={artifacts}
-              roundNote={entry.roundNotes?.R2 ?? ""}
-              screenshots={temporaryScreenshots.R2}
-              onAddScreenshots={addTemporaryScreenshots}
-              onRemoveScreenshot={removeTemporaryScreenshot}
-              onRoundNoteChange={updateRoundNote}
-              onHeroChange={updateHero}
-            />
+              <RoundPanel
+                roundKey="R2"
+                heroes={entry.rounds.R2}
+                heroMaster={heroes}
+                artifactMaster={artifacts}
+                roundNote={entry.roundNotes?.R2 ?? ""}
+                onRoundNoteChange={updateRoundNote}
+                onHeroChange={updateHero}
+              />
+            </div>
 
             <SummaryTable entry={entry} artifactMaster={artifacts} onCopyDiscord={copyDiscord} />
           </div>
