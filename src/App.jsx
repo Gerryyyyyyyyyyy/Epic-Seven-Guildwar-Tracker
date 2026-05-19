@@ -1000,14 +1000,23 @@ function SpeedCalculator({ roundKey }) {
   );
 }
 
-function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, onRoundNoteChange, onHeroChange }) {
-  const [open, setOpen] = useState(true);
-
+function RoundPanel({
+  roundKey,
+  heroes,
+  heroMaster,
+  artifactMaster,
+  roundNote,
+  isOpen,
+  onToggle,
+  wideHeroLayout,
+  onRoundNoteChange,
+  onHeroChange,
+}) {
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/40">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={onToggle}
         className="flex w-full items-center justify-between gap-3 rounded-3xl p-4 text-left hover:bg-slate-900/70"
       >
         <div className="flex min-w-0 items-center gap-3">
@@ -1023,11 +1032,11 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, o
         </div>
 
         <div className="shrink-0 rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
-          {open ? "Collapse" : "Expand"}
+          {isOpen ? "Collapse" : "Expand"}
         </div>
       </button>
 
-      {open && (
+      {isOpen && (
         <div className="space-y-4 border-t border-slate-800 p-4">
           <Field
             label={`${roundKey === "R1" ? "Round 1" : "Round 2"} Team Note`}
@@ -1038,7 +1047,7 @@ function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, roundNote, o
 
           <SpeedCalculator roundKey={roundKey} />
 
-          <div className="space-y-3">
+          <div className={wideHeroLayout ? "grid gap-3 xl:grid-cols-3" : "space-y-3"}>
             {heroes.map((hero, index) => (
               <HeroCard
                 key={`${roundKey}-${index}`}
@@ -1218,6 +1227,7 @@ export default function EpicSevenGwTrackerApp() {
   const [status, setStatus] = useState("Starting SQLite database...");
   const [actionsOpen, setActionsOpen] = useState(false);
   const [savedEntriesOpen, setSavedEntriesOpen] = useState(false);
+  const [roundOpen, setRoundOpen] = useState({ R1: true, R2: true });
   const actionsMenuRef = useRef(null);
   const [temporaryScreenshots, setTemporaryScreenshots] = useState({
     R1: [],
@@ -1283,6 +1293,22 @@ export default function EpicSevenGwTrackerApp() {
     if (!query) return savedEntries;
     return savedEntries.filter((item) => item.opponent.toLowerCase().includes(query));
   }, [savedEntries, search]);
+
+  const openRoundCount = Number(roundOpen.R1) + Number(roundOpen.R2);
+  const oneRoundOpen = openRoundCount === 1;
+  const roundGridClass =
+    openRoundCount === 2
+      ? "grid gap-4 2xl:grid-cols-2"
+      : oneRoundOpen
+      ? "mx-auto grid max-w-[1700px] gap-4"
+      : "grid gap-4 2xl:grid-cols-2";
+
+  const toggleRound = (roundKey) => {
+    setRoundOpen((current) => ({
+      ...current,
+      [roundKey]: !current[roundKey],
+    }));
+  };
 
   const updateHero = (roundKey, heroIndex, nextHero) => {
     setEntry((current) => ({
@@ -1663,13 +1689,16 @@ export default function EpicSevenGwTrackerApp() {
         </section>
 
           <div className="space-y-6">
-            <div className="grid gap-4 2xl:grid-cols-2">
+            <div className={roundGridClass}>
               <RoundPanel
                 roundKey="R1"
                 heroes={entry.rounds.R1}
                 heroMaster={heroes}
                 artifactMaster={artifacts}
                 roundNote={entry.roundNotes?.R1 ?? ""}
+                isOpen={roundOpen.R1}
+                onToggle={() => toggleRound("R1")}
+                wideHeroLayout={oneRoundOpen && roundOpen.R1}
                 onRoundNoteChange={updateRoundNote}
                 onHeroChange={updateHero}
               />
@@ -1680,6 +1709,9 @@ export default function EpicSevenGwTrackerApp() {
                 heroMaster={heroes}
                 artifactMaster={artifacts}
                 roundNote={entry.roundNotes?.R2 ?? ""}
+                isOpen={roundOpen.R2}
+                onToggle={() => toggleRound("R2")}
+                wideHeroLayout={oneRoundOpen && roundOpen.R2}
                 onRoundNoteChange={updateRoundNote}
                 onHeroChange={updateHero}
               />
