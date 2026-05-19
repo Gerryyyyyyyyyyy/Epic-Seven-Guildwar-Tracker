@@ -1132,6 +1132,15 @@ function SpeedCalculator({ entry, onHeroChange }) {
               Target: {targetRound} · {selectedHero.name || `Hero ${targetHeroIndex + 1}`}
             </h3>
             <p className="text-xs text-slate-500">{status}</p>
+
+            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-3">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Current Additional Notes
+              </p>
+              <p className="whitespace-pre-wrap text-sm text-slate-300">
+                {selectedHero.additionalNotes || "No notes for this hero yet."}
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr]">
@@ -1998,8 +2007,8 @@ export default function EpicSevenGwTrackerApp() {
     <main className="min-h-screen bg-slate-950 p-4 text-slate-100 md:p-6">
       <div className="mx-auto max-w-[2400px] space-y-5 px-2">
         <header className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
                 <Shield size={14} /> Epic Seven Guild War Tracker
               </div>
@@ -2009,36 +2018,40 @@ export default function EpicSevenGwTrackerApp() {
               </p>
             </div>
 
-            <button
-              onClick={newEntry}
-              className="inline-flex w-fit items-center rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm hover:bg-slate-800"
-            >
-              <Plus className="mr-2 h-4 w-4" /> New opponent
-            </button>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <nav className="grid gap-1 rounded-2xl border border-slate-800 bg-slate-950 p-1 shadow-xl shadow-black/20 sm:grid-cols-4">
+                {[
+                  { id: "scout", label: "Scout" },
+                  { id: "speed", label: "Speed" },
+                  { id: "counters", label: "Counters" },
+                  { id: "settings", label: "Settings" },
+                ].map((page) => (
+                  <button
+                    key={page.id}
+                    type="button"
+                    onClick={() => setActivePage(page.id)}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                      activePage === page.id
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                    }`}
+                  >
+                    {page.label}
+                  </button>
+                ))}
+              </nav>
+
+              <button
+                onClick={newEntry}
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm hover:bg-slate-800"
+              >
+                <Plus className="mr-2 h-4 w-4" /> New opponent
+              </button>
+            </div>
           </div>
         </header>
 
-        <nav className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-xl shadow-black/20 md:grid-cols-3">
-          {[
-            { id: "scout", label: "Scout" },
-            { id: "speed", label: "Speed Calc" },
-            { id: "counters", label: "Counters" },
-            { id: "settings", label: "Settings" },
-          ].map((page) => (
-            <button
-              key={page.id}
-              type="button"
-              onClick={() => setActivePage(page.id)}
-              className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                activePage === page.id
-                  ? "bg-indigo-600 text-white"
-                  : "bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-              }`}
-            >
-              {page.label}
-            </button>
-          ))}
-        </nav>
+
 
 
         {activePage === "scout" && (
