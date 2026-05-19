@@ -1,14 +1,23 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import React, { useEffect, useMemo, useState } from "react";
 import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
 import {
-  Plus, Save, Search, Trash2, RotateCcw, Swords, Shield, Users, Image as ImageIcon, X,
-  Download, Upload, Copy, FolderArchive, MoreVertical, Database as DatabaseIcon,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  RotateCcw,
+  Swords,
+  Shield,
+  Users,
+  Download,
+  Upload,
+  Copy,
+  FolderArchive,
+  Database as DatabaseIcon,
 } from "lucide-react";
 
 const DB_URL = "sqlite:e7_gw_tracker.db";
-const FRIBBELS_HERO_DATA_URL = "https://raw.githubusercontent.com/fribbels/Fribbels-Epic-7-Optimizer/main/data/cache/herodata.json";
-const FRIBBELS_ARTIFACT_DATA_URL = "https://raw.githubusercontent.com/fribbels/Fribbels-Epic-7-Optimizer/main/data/cache/artifactdata.json";
 const STAT_FIELDS = ["ATK", "DEF", "HP", "Speed", "EFF", "ER"];
 
 const SET_OPTIONS = [
@@ -19,7 +28,6 @@ const SET_OPTIONS = [
   { name: "Pursuit", image: "icons/sets/pursuit.png", fallback: "🏹" },
   { name: "Protection", image: "icons/sets/protection.png", fallback: "🛡" },
   { name: "Injury", image: "icons/sets/injury.png", fallback: "🩸" },
-  { name: "Lifesteal", image: "icons/sets/lifesteal.png", fallback: "💚" },
 ];
 
 const CLASS_OPTIONS = [
@@ -34,13 +42,30 @@ const CLASS_OPTIONS = [
 const HERO_MASTER_DATA = [
   { id: "peira", name: "Peira", class: "Thief", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
   { id: "luna", name: "Luna", class: "Warrior", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
+  { id: "yufine", name: "Yufine", class: "Warrior", element: "Earth", rarity: 5, icon: "", thumbnail: "" },
+  { id: "ilynav", name: "Ilynav", class: "Knight", element: "Fire", rarity: 5, icon: "", thumbnail: "" },
+  { id: "harunka", name: "Harunka", class: "Warrior", element: "Dark", rarity: 5, icon: "", thumbnail: "" },
+  { id: "mercedes", name: "Mercedes", class: "Mage", element: "Fire", rarity: 4, icon: "", thumbnail: "" },
   { id: "ran", name: "Ran", class: "Thief", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
+  { id: "conqueror-lilias", name: "Conqueror Lilias", class: "Warrior", element: "Dark", rarity: 5, icon: "", thumbnail: "" },
+  { id: "angel-of-light-angelica", name: "Angel of Light Angelica", class: "Mage", element: "Light", rarity: 4, icon: "", thumbnail: "" },
+  { id: "karina", name: "ae-KARINA", class: "Knight", element: "Ice", rarity: 5, icon: "", thumbnail: "" },
 ];
 
 const ARTIFACT_MASTER_DATA = [
+  { id: "elbris-ritual-sword", name: "Elbris Ritual Sword", class: "Knight", rarity: 5, code: "", attack: null, health: null, defense: null },
   { id: "aurius", name: "Aurius", class: "Knight", rarity: 4, code: "", attack: null, health: null, defense: null },
-  { id: "proof-of-valor", name: "Proof of Valor", class: "", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "adamant-shield", name: "Adamant Shield", class: "Knight", rarity: 4, code: "", attack: null, health: null, defense: null },
+  { id: "noble-oath", name: "Noble Oath", class: "Knight", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "holy-sacrifice", name: "Holy Sacrifice", class: "Knight", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "uberiuss-tooth", name: "Uberius's Tooth", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "sigurd-scythe", name: "Sigurd Scythe", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "draco-plate", name: "Draco Plate", class: "Warrior", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "rhianna-luciella", name: "Rhianna & Luciella", class: "Thief", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "alexas-basket", name: "Alexa's Basket", class: "Thief", rarity: 5, code: "", attack: null, health: null, defense: null },
   { id: "guiding-light", name: "Guiding Light", class: "Ranger", rarity: 5, code: "", attack: null, health: null, defense: null },
+  { id: "tagehels-ancient-book", name: "Tagehel's Ancient Book", class: "Mage", rarity: 4, code: "", attack: null, health: null, defense: null },
+  { id: "rod-of-amaryllis", name: "Rod of Amaryllis", class: "Soul Weaver", rarity: 5, code: "", attack: null, health: null, defense: null },
 ];
 
 function uid() {
@@ -56,7 +81,7 @@ function slugify(value) {
 }
 
 function mapFribbelsRole(role) {
-  const map = {
+  const roleMap = {
     warrior: "Warrior",
     knight: "Knight",
     assassin: "Thief",
@@ -64,12 +89,18 @@ function mapFribbelsRole(role) {
     mage: "Mage",
     manauser: "Soul Weaver",
   };
-  return map[String(role || "").toLowerCase()] || "";
+  return roleMap[String(role || "").toLowerCase()] || "";
 }
 
 function mapFribbelsElement(attribute) {
-  const map = { fire: "Fire", ice: "Ice", wind: "Earth", light: "Light", dark: "Dark" };
-  return map[String(attribute || "").toLowerCase()] || attribute || "";
+  const elementMap = {
+    fire: "Fire",
+    ice: "Ice",
+    wind: "Earth",
+    light: "Light",
+    dark: "Dark",
+  };
+  return elementMap[String(attribute || "").toLowerCase()] || attribute || "";
 }
 
 function normalizeFribbelsHeroes(raw) {
@@ -152,7 +183,6 @@ function blankEntry() {
     note: "",
     createdAt: now,
     updatedAt: now,
-    roundNotes: { R1: "", R2: "" },
     rounds: {
       R1: [blankHero(), blankHero(), blankHero()],
       R2: [blankHero(), blankHero(), blankHero()],
@@ -165,7 +195,7 @@ async function getDb() {
     return await Database.load(DB_URL);
   } catch (error) {
     console.error("SQLite load failed:", error);
-    throw new Error("SQLite could not be loaded. Check Tauri SQL plugin and permissions.");
+    throw new Error("SQLite could not be loaded. Check Tauri SQL plugin permissions.");
   }
 }
 
@@ -210,8 +240,6 @@ async function initDb() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       note TEXT,
-      round1_note TEXT,
-      round2_note TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -247,8 +275,6 @@ async function initDb() {
   await ensureColumn(db, "artifacts", "attack", "INTEGER");
   await ensureColumn(db, "artifacts", "health", "INTEGER");
   await ensureColumn(db, "artifacts", "defense", "INTEGER");
-  await ensureColumn(db, "opponents", "round1_note", "TEXT");
-  await ensureColumn(db, "opponents", "round2_note", "TEXT");
 
   await seedMasterData(db);
   await importBundledMasterData(db);
@@ -261,22 +287,10 @@ async function fetchBundledJson(paths) {
       const response = await fetch(path);
       if (response.ok) return await response.json();
     } catch {
-      // try next
+      // Try next path.
     }
   }
   return null;
-}
-
-async function fetchJsonFromUrl(url) {
-  const response = await fetch(url, {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error(`Could not fetch data. Status: ${response.status}`);
-  }
-
-  return await response.json();
 }
 
 async function importBundledMasterData(db) {
@@ -285,35 +299,6 @@ async function importBundledMasterData(db) {
 
   const rawArtifacts = await fetchBundledJson(["./data/artifactdata.json", "data/artifactdata.json", "/data/artifactdata.json"]);
   if (rawArtifacts) await upsertArtifacts(db, normalizeFribbelsArtifacts(rawArtifacts));
-}
-
-
-async function updateMasterDataFromFribbels() {
-  const [rawHeroes, rawArtifacts] = await Promise.all([
-    fetchJsonFromUrl(FRIBBELS_HERO_DATA_URL),
-    fetchJsonFromUrl(FRIBBELS_ARTIFACT_DATA_URL),
-  ]);
-
-  const heroes = normalizeFribbelsHeroes(rawHeroes);
-  const artifacts = normalizeFribbelsArtifacts(rawArtifacts);
-
-  if (heroes.length < 100) {
-    throw new Error(`Hero data looks wrong. Only ${heroes.length} heroes found.`);
-  }
-
-  if (artifacts.length < 50) {
-    throw new Error(`Artifact data looks wrong. Only ${artifacts.length} artifacts found.`);
-  }
-
-  const db = await getDb();
-
-  await upsertHeroes(db, heroes);
-  await upsertArtifacts(db, artifacts);
-
-  return {
-    heroesCount: heroes.length,
-    artifactsCount: artifacts.length,
-  };
 }
 
 async function upsertHeroes(db, heroes) {
@@ -365,31 +350,27 @@ async function loadMasterData() {
 async function loadOpponents() {
   const db = await getDb();
   return await db.select(
-    "SELECT id, name AS opponent, note, round1_note AS round1Note, round2_note AS round2Note, created_at AS createdAt, updated_at AS updatedAt FROM opponents ORDER BY updated_at DESC"
+    "SELECT id, name AS opponent, note, created_at AS createdAt, updated_at AS updatedAt FROM opponents ORDER BY updated_at DESC"
   );
 }
 
 async function loadEntryFromDb(opponentId) {
   const db = await getDb();
   const opponents = await db.select(
-    "SELECT id, name AS opponent, note, round1_note AS round1Note, round2_note AS round2Note, created_at AS createdAt, updated_at AS updatedAt FROM opponents WHERE id = ?",
+    "SELECT id, name AS opponent, note, created_at AS createdAt, updated_at AS updatedAt FROM opponents WHERE id = ?",
     [opponentId]
   );
 
   if (!opponents[0]) return null;
 
-  const rows = await db.select("SELECT * FROM scout_entries WHERE opponent_id = ? ORDER BY round_key ASC, slot_number ASC", [opponentId]);
+  const rows = await db.select(
+    "SELECT * FROM scout_entries WHERE opponent_id = ? ORDER BY round_key ASC, slot_number ASC",
+    [opponentId]
+  );
 
   const entry = {
     ...opponents[0],
-    roundNotes: {
-      R1: opponents[0].round1Note ?? "",
-      R2: opponents[0].round2Note ?? "",
-    },
-    rounds: {
-      R1: [blankHero(), blankHero(), blankHero()],
-      R2: [blankHero(), blankHero(), blankHero()],
-    },
+    rounds: { R1: [blankHero(), blankHero(), blankHero()], R2: [blankHero(), blankHero(), blankHero()] },
   };
 
   for (const row of rows) {
@@ -425,23 +406,10 @@ async function saveEntryToDb(entry) {
   const createdAt = entry.createdAt || updatedAt;
 
   await db.execute(
-    `INSERT INTO opponents (id, name, note, round1_note, round2_note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       name = excluded.name,
-       note = excluded.note,
-       round1_note = excluded.round1_note,
-       round2_note = excluded.round2_note,
-       updated_at = excluded.updated_at`,
-    [
-      entry.id,
-      opponent,
-      entry.note ?? "",
-      entry.roundNotes?.R1 ?? "",
-      entry.roundNotes?.R2 ?? "",
-      createdAt,
-      updatedAt,
-    ]
+    `INSERT INTO opponents (id, name, note, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, note = excluded.note, updated_at = excluded.updated_at`,
+    [entry.id, opponent, entry.note ?? "", createdAt, updatedAt]
   );
 
   await db.execute("DELETE FROM scout_entries WHERE opponent_id = ?", [entry.id]);
@@ -449,7 +417,6 @@ async function saveEntryToDb(entry) {
   for (const roundKey of ["R1", "R2"]) {
     for (let i = 0; i < 3; i += 1) {
       const hero = normalizeHeroEntry(entry.rounds[roundKey][i]);
-
       await db.execute(
         `INSERT INTO scout_entries (
           id, opponent_id, round_key, slot_number, hero_id, hero_name_custom, class,
@@ -477,16 +444,7 @@ async function saveEntryToDb(entry) {
     }
   }
 
-  return {
-    ...entry,
-    opponent,
-    createdAt,
-    updatedAt,
-    roundNotes: {
-      R1: entry.roundNotes?.R1 ?? "",
-      R2: entry.roundNotes?.R2 ?? "",
-    },
-  };
+  return { ...entry, opponent, createdAt, updatedAt };
 }
 
 async function deleteEntryFromDb(id) {
@@ -499,7 +457,7 @@ async function importEntriesToDb(entries) {
   let imported = 0;
   for (const entry of entries) {
     if (entry?.id && entry?.rounds?.R1 && entry?.rounds?.R2) {
-      await saveEntryToDb({ ...entry, roundNotes: entry.roundNotes ?? { R1: "", R2: "" } });
+      await saveEntryToDb(entry);
       imported += 1;
     }
   }
@@ -508,12 +466,22 @@ async function importEntriesToDb(entries) {
 
 async function saveJsonNextToExe(filename, payload) {
   const content = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
-  return await invoke("save_json_next_to_exe", { filename, content });
+  try {
+    return await invoke("save_json_next_to_exe", { filename, content });
+  } catch (error) {
+    const blob = new Blob([content], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    throw error;
+  }
 }
 
 function AppIcon({ meta, size = 22 }) {
   const [failed, setFailed] = useState(false);
-
   if (!meta?.image || failed) {
     return (
       <span style={{ width: size, height: size, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
@@ -521,66 +489,33 @@ function AppIcon({ meta, size = 22 }) {
       </span>
     );
   }
-
-  return (
-    <img
-      src={meta.image}
-      alt=""
-      onError={() => setFailed(true)}
-      style={{ width: size, height: size, objectFit: "contain", display: "inline-block" }}
-    />
-  );
+  return <img src={meta.image} alt="" onError={() => setFailed(true)} style={{ width: size, height: size, objectFit: "contain", display: "inline-block" }} />;
 }
 
 function buildDiscordSummary(entry, artifactMaster) {
-  const artifactName = (artifactId) =>
-    artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
-
+  const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "?";
   const statLine = (hero) =>
-    `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${
-      hero.stats.Speed || "?"
-    } | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
+    `ATK ${hero.stats.ATK || "?"} | DEF ${hero.stats.DEF || "?"} | HP ${hero.stats.HP || "?"} | SPD ${hero.stats.Speed || "?"} | EFF ${hero.stats.EFF || "?"} | ER ${hero.stats.ER || "?"}`;
 
   const lines = [];
-
-  if (entry.opponent) {
-  lines.push(`**${entry.opponent}**`);
-  }
-
-  if (entry.note) {
-    lines.push(`Note: ${entry.note}`);
-  }
-
-  if (entry.opponent || entry.note) {
-    lines.push("");
-  }
+  lines.push(`**${entry.opponent || "Unnamed opponent"}**`);
+  if (entry.note) lines.push(`_${entry.note}_`);
+  lines.push("");
 
   for (const roundKey of ["R1", "R2"]) {
-    lines.push(roundKey === "R1" ? "__Round 1__" : "__Round 2__");
-
-    const roundNote = entry.roundNotes?.[roundKey] ?? "";
-    if (roundNote) {
-      lines.push(`Team note: ${roundNote}`);
-    }
-
-    lines.push("");
-
+    lines.push(`__${roundKey === "R1" ? "Round 1" : "Round 2"}__`);
     entry.rounds[roundKey].forEach((hero, index) => {
       const normalizedHero = normalizeHeroEntry(hero);
       const sets = normalizedHero.sets.length ? normalizedHero.sets.join(", ") : "?";
-      const artifact = artifactName(normalizedHero.artifactId);
-
-      lines.push(`${index + 1}. **${normalizedHero.name || "?"}**`);
-      lines.push(statLine(normalizedHero));
-      lines.push(`**Sets:** ${sets}`);
-      lines.push(`**Artifact:** ${artifact}`);
-
-      if (normalizedHero.additionalNotes) {
-        lines.push(`**Additional note:** ${normalizedHero.additionalNotes}`);
-      }
-
-      lines.push("");
+      lines.push(
+        `${index + 1}. **${normalizedHero.name || "?"}**\n` +
+          `   ${statLine(normalizedHero)}\n` +
+          `   **Sets:** ${sets}\n` +
+          `   **Artifact:** ${artifactName(normalizedHero.artifactId)}` +
+          `${normalizedHero.additionalNotes ? `\n   **Additional Notes:** ${normalizedHero.additionalNotes}` : ""}`
+      );
     });
+    lines.push("");
   }
 
   return lines.join("\n").trim();
@@ -589,12 +524,12 @@ function buildDiscordSummary(entry, artifactMaster) {
 function Field({ label, value, onChange, placeholder = "" }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
       />
     </label>
   );
@@ -603,11 +538,11 @@ function Field({ label, value, onChange, placeholder = "" }) {
 function SelectField({ label, value, onChange, options, placeholder }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
@@ -649,7 +584,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
   return (
     <div className="relative">
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
+        <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
         <input
           value={query}
           onChange={(event) => {
@@ -666,14 +601,13 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
             }
           }}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
         />
       </label>
-
       {open && (
-        <div className="absolute z-20 mt-1 max-h-80 w-[min(42rem,90vw)] overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-1 shadow-2xl">
+        <div className="absolute z-20 mt-1 max-h-80 w-[min(42rem,90vw)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
           {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-slate-400">No results</div>
+            <div className="px-3 py-2 text-sm text-slate-500">No results</div>
           ) : (
             filtered.map((option) => (
               <button
@@ -685,7 +619,7 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
                   setQuery(option.label);
                   setOpen(false);
                 }}
-                className="flex w-full items-center justify-between gap-4 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-slate-800"
+                className="flex w-full items-center justify-between gap-4 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-slate-100"
               >
                 <span className="min-w-0 flex-1 whitespace-normal leading-snug">{option.label}</span>
                 {option.meta && <span className="shrink-0 text-xs text-slate-400">{option.meta}</span>}
@@ -700,7 +634,6 @@ function SearchableSelect({ label, value, onChange, options, placeholder }) {
 
 function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }) {
   const normalizedHero = normalizeHeroEntry(hero);
-
   const heroOptions = heroes.map((item) => ({
     value: item.id,
     label: `${item.name} · ${item.class}${item.rarity ? ` · ${item.rarity}★` : ""}`,
@@ -721,46 +654,32 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
   const classMeta = getClassMeta(normalizedHero.class);
 
   const updateHero = (patch) => onHeroChange(roundKey, heroIndex, { ...normalizedHero, ...patch });
-
-  const updateStat = (stat, value) => {
-    updateHero({ stats: { ...normalizedHero.stats, [stat]: value } });
-  };
-
+  const updateStat = (stat, value) => updateHero({ stats: { ...normalizedHero.stats, [stat]: value } });
   const toggleSet = (setName) => {
     const hasSet = normalizedHero.sets.includes(setName);
     updateHero({ sets: hasSet ? normalizedHero.sets.filter((item) => item !== setName) : [...normalizedHero.sets, setName] });
   };
-
   const changeHero = (heroId) => {
     const selectedHero = heroes.find((item) => item.id === heroId);
     if (!selectedHero) {
       updateHero({ heroId: "", name: "", artifactId: "" });
       return;
     }
-
-    updateHero({
-      heroId: selectedHero.id,
-      name: selectedHero.name,
-      class: selectedHero.class,
-      artifactId: "",
-    });
+    updateHero({ heroId: selectedHero.id, name: selectedHero.name, class: selectedHero.class, artifactId: "" });
   };
-
-  const changeClass = (nextClass) => {
-    updateHero({ class: nextClass, heroId: "", artifactId: "" });
-  };
+  const changeClass = (nextClass) => updateHero({ class: nextClass, heroId: "", artifactId: "" });
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hero {heroIndex + 1}</p>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-100">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Hero {heroIndex + 1}</p>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
             <AppIcon meta={classMeta} />
             <span>{normalizedHero.name || "Unnamed Hero"}</span>
           </h3>
         </div>
-        <div className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">{roundKey}</div>
+        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{roundKey}</div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -798,7 +717,7 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
       </div>
 
       <div className="mt-4">
-        <p className="mb-2 text-xs font-medium text-slate-400">Sets</p>
+        <p className="mb-2 text-xs font-medium text-slate-500">Sets</p>
         <div className="flex flex-wrap gap-2">
           {SET_OPTIONS.map((setOption) => {
             const active = normalizedHero.sets.includes(setOption.name);
@@ -809,8 +728,8 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
                 onClick={() => toggleSet(setOption.name)}
                 className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-medium transition ${
                   active
-                    ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
-                    : "border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500 hover:bg-slate-800"
+                    ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                    : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
                 }`}
               >
                 <AppIcon meta={setOption} size={28} />
@@ -824,311 +743,45 @@ function HeroCard({ roundKey, heroIndex, hero, heroes, artifacts, onHeroChange }
   );
 }
 
-function parseNumberInput(value) {
-  const match = String(value || "").replace(",", ".").match(/\d+(\.\d+)?/);
-  return match ? Number(match[0]) : null;
-}
-
-function calculateEnemySpeed(mySpeedRaw, enemyCrRaw, mode) {
-  const mySpeed = parseNumberInput(mySpeedRaw);
-  const enemyCr = parseNumberInput(enemyCrRaw);
-
-  if (!Number.isFinite(mySpeed) || mySpeed <= 0) {
-    return {
-      valid: false,
-      message: "Enter your unit speed.",
-    };
-  }
-
-  if (!Number.isFinite(enemyCr) || enemyCr < 0) {
-    return {
-      valid: false,
-      message: "Enter enemy CR percentage.",
-    };
-  }
-
-  const displayedEnemyCr = mode === "second" ? 100 + enemyCr : enemyCr;
-
-  // Normal estimate without start CR RNG.
-  const estimatedSpeed = mySpeed * (displayedEnemyCr / 100);
-
-  // Epic Seven start CR RNG: every unit can start between 0% and 5%.
-  // Extreme 1: I have 0%, enemy has 5% => enemy speed estimate becomes lower.
-  // Extreme 2: I have 5%, enemy has 0% => enemy speed estimate becomes higher.
-  const lowestPossibleSpeed = mySpeed * ((displayedEnemyCr - 5) / 100);
-  const highestPossibleSpeed = mySpeed * ((displayedEnemyCr + 5) / 100);
-
-  return {
-    valid: true,
-    mySpeed,
-    enemyCr,
-    mode,
-    displayedEnemyCr,
-    estimatedSpeed,
-    estimatedSpeedRounded: Math.round(estimatedSpeed),
-    lowestPossibleSpeed,
-    highestPossibleSpeed,
-    lowestPossibleSpeedRounded: Math.round(lowestPossibleSpeed),
-    highestPossibleSpeedRounded: Math.round(highestPossibleSpeed),
-  };
-}
-
-function SpeedCalculator({ roundKey }) {
-  const [mySpeed, setMySpeed] = useState("");
-  const [enemyCr, setEnemyCr] = useState("");
-  const [mode, setMode] = useState("first");
-
-  const result = useMemo(
-    () => calculateEnemySpeed(mySpeed, enemyCr, mode),
-    [mySpeed, enemyCr, mode]
-  );
-
-  const formulaText =
-    mode === "second"
-      ? "Estimated speed = my speed × (100% + enemy current CR%)"
-      : "Estimated speed = my speed × enemy current CR%";
-
-  const crRngText =
-    "Start CR RNG can shift the estimate because each unit can start with 0–5% CR. The two extremes are: I start at 0% and enemy starts at 5%, or I start at 5% and enemy starts at 0%.";
-
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-      <div className="mb-4 flex flex-col gap-1">
-        <h3 className="font-bold text-slate-100">
-          Speed Calculator · {roundKey === "R1" ? "Round 1" : "Round 2"}
-        </h3>
-        <p className="text-xs text-slate-400">
-          Estimate enemy speed from CR position.
-        </p>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-[1fr_1fr_1.4fr]">
-        <Field
-          label="My unit speed"
-          value={mySpeed}
-          onChange={setMySpeed}
-          placeholder="e.g. 300"
-        />
-
-        <Field
-          label="Enemy CR %"
-          value={enemyCr}
-          onChange={setEnemyCr}
-          placeholder={mode === "second" ? "e.g. 20" : "e.g. 85"}
-        />
-
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-400">
-            Situation
-          </span>
-          <select
-            value={mode}
-            onChange={(event) => setMode(event.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-950"
-          >
-            <option value="first">I go first</option>
-            <option value="second">I go second / enemy already moved</option>
-          </select>
-        </label>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
-        {!result.valid ? (
-          <p className="text-sm text-slate-500">{result.message}</p>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-slate-400">{formulaText}</p>
-
-            <p className="text-2xl font-black text-slate-50">
-              Estimated speed:{" "}
-              <span className="text-indigo-400">
-                {result.estimatedSpeedRounded}
-              </span>
-            </p>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                With 0–5% start CR RNG
-              </p>
-
-              <p className="text-sm text-slate-300">
-                Possible range:{" "}
-                <span className="font-bold text-emerald-400">
-                  {result.lowestPossibleSpeedRounded}
-                </span>{" "}
-                –{" "}
-                <span className="font-bold text-red-400">
-                  {result.highestPossibleSpeedRounded}
-                </span>
-              </p>
-
-              <p className="mt-1 text-xs text-slate-500">
-                Exact range: {result.lowestPossibleSpeed.toFixed(2)} –{" "}
-                {result.highestPossibleSpeed.toFixed(2)}
-              </p>
-            </div>
-
-            <div className="space-y-1 text-xs text-slate-500">
-              <p>
-                Effective enemy CR used:{" "}
-                <span className="text-slate-300">
-                  {result.displayedEnemyCr.toFixed(2)}%
-                </span>
-              </p>
-              <p>{crRngText}</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function RoundPanel({roundKey,heroes,heroMaster,artifactMaster,roundNote,screenshots,onAddScreenshots,onRemoveScreenshot,onRoundNoteChange,onHeroChange,}) {
+function RoundPanel({ roundKey, heroes, heroMaster, artifactMaster, onHeroChange }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2">
-        <div className="rounded-2xl bg-indigo-600 p-2 text-white">
+        <div className="rounded-2xl bg-slate-900 p-2 text-white">
           <Swords size={18} />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-100">Round {roundKey === "R1" ? "1" : "2"}</h2>
-          <p className="text-sm text-slate-400">Three heroes with stats, custom set icons, and class-based artifact selection.</p>
+          <h2 className="text-xl font-bold text-slate-900">Round {roundKey === "R1" ? "1" : "2"}</h2>
+          <p className="text-sm text-slate-500">Three heroes with stats, custom set icons, and class-based artifact selection.</p>
         </div>
       </div>
-
-      <Field
-        label={`Round ${roundKey === "R1" ? "1" : "2"} Team Note`}
-        value={roundNote}
-        onChange={(value) => onRoundNoteChange(roundKey, value)}
-        placeholder="Optional note for this team"
-      />
-      
-      {/*
-      <TemporaryScreenshots
-       roundKey={roundKey}
-       screenshots={screenshots}
-       onAddScreenshots={onAddScreenshots}
-       onRemoveScreenshot={onRemoveScreenshot}
-     />
-     */}
-
-      <SpeedCalculator roundKey={roundKey} />
-
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-3">
         {heroes.map((hero, index) => (
-          <HeroCard
-            key={`${roundKey}-${index}`}
-            roundKey={roundKey}
-            heroIndex={index}
-            hero={hero}
-            heroes={heroMaster}
-            artifacts={artifactMaster}
-            onHeroChange={onHeroChange}
-          />
+          <HeroCard key={`${roundKey}-${index}`} roundKey={roundKey} heroIndex={index} hero={hero} heroes={heroMaster} artifacts={artifactMaster} onHeroChange={onHeroChange} />
         ))}
       </div>
     </section>
   );
 }
 
-function TemporaryScreenshots({ roundKey, screenshots, onAddScreenshots, onRemoveScreenshot }) {
-  const inputId = `screenshot-upload-${roundKey}`;
-
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="flex items-center gap-2 font-bold text-slate-100">
-            <ImageIcon size={18} />
-            Temporary Screenshots
-          </h3>
-          <p className="text-xs text-slate-400">
-            Add quick CR bar screenshots. They are not saved to SQLite and disappear after restart.
-          </p>
-        </div>
-
-        <label
-          htmlFor={inputId}
-          className="inline-flex cursor-pointer items-center rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 hover:bg-slate-800"
-        >
-          <Upload className="mr-2 h-3 w-3" />
-          Add
-        </label>
-
-        <input
-          id={inputId}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(event) => {
-            onAddScreenshots(roundKey, event.target.files);
-            event.target.value = "";
-          }}
-          className="hidden"
-        />
-      </div>
-
-      {screenshots.length === 0 ? (
-        <p className="rounded-xl bg-slate-950 p-3 text-sm text-slate-500">
-          No screenshots added.
-        </p>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-          {screenshots.map((screenshot) => (
-            <div
-              key={screenshot.id}
-              className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"
-            >
-              <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-3 py-2">
-                <p className="truncate text-xs text-slate-400">{screenshot.name}</p>
-                <button
-                  type="button"
-                  onClick={() => onRemoveScreenshot(roundKey, screenshot.id)}
-                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400"
-                  title="Remove screenshot"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              <img
-                src={screenshot.url}
-                alt={screenshot.name}
-                className="max-h-64 w-full object-contain"
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SummaryTable({ entry, artifactMaster, onCopyDiscord }) {
-  const rows = ["R1", "R2"].flatMap((roundKey) =>
-    entry.rounds[roundKey].map((hero, index) => ({ roundKey, index, hero: normalizeHeroEntry(hero) }))
-  );
+  const rows = ["R1", "R2"].flatMap((roundKey) => entry.rounds[roundKey].map((hero, index) => ({ roundKey, index, hero: normalizeHeroEntry(hero) })));
   const artifactName = (artifactId) => artifactMaster.find((artifact) => artifact.id === artifactId)?.name ?? "—";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
         <div>
-          <h2 className="font-bold text-slate-100">Summary</h2>
-          <p className="text-sm text-slate-400">Copy the full defense as Discord-ready text.</p>
+          <h2 className="font-bold text-slate-900">Summary</h2>
+          <p className="text-sm text-slate-500">Copy the full defense as Discord-ready text.</p>
         </div>
-        <button
-          onClick={onCopyDiscord}
-          className="inline-flex items-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
-        >
+        <button onClick={onCopyDiscord} className="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800">
           <Copy className="mr-2 h-4 w-4" /> Copy for Discord
         </button>
       </div>
-
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-slate-950 text-xs uppercase tracking-wide text-slate-400">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Round</th>
               <th className="px-4 py-3">Hero</th>
@@ -1143,35 +796,23 @@ function SummaryTable({ entry, artifactMaster, onCopyDiscord }) {
               <th className="px-4 py-3">Artifact</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-slate-100">
             {rows.map(({ roundKey, index, hero }) => (
-              <tr key={`${roundKey}-summary-${index}`} className="text-slate-300">
-                <td className="px-4 py-3 font-semibold text-slate-100">{roundKey}</td>
+              <tr key={`${roundKey}-summary-${index}`} className="text-slate-700">
+                <td className="px-4 py-3 font-semibold text-slate-900">{roundKey}</td>
                 <td className="px-4 py-3">{hero.name || "—"}</td>
                 <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-2">
-                    <AppIcon meta={getClassMeta(hero.class)} size={18} />
-                    {hero.class}
-                  </span>
+                  <span className="inline-flex items-center gap-2"><AppIcon meta={getClassMeta(hero.class)} size={18} />{hero.class}</span>
                 </td>
-                {STAT_FIELDS.map((stat) => (
-                  <td key={stat} className="px-4 py-3">
-                    {hero.stats[stat] || "—"}
-                  </td>
-                ))}
+                {STAT_FIELDS.map((stat) => <td key={stat} className="px-4 py-3">{hero.stats[stat] || "—"}</td>)}
                 <td className="px-4 py-3">
                   {hero.sets.length ? (
                     <div className="flex flex-wrap gap-1.5">
                       {hero.sets.map((setName) => (
-                        <span key={setName} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 px-2.5 py-1.5 text-xs text-slate-200">
-                          <AppIcon meta={getSetMeta(setName)} size={22} />
-                          {setName}
-                        </span>
+                        <span key={setName} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-2.5 py-1.5 text-xs"><AppIcon meta={getSetMeta(setName)} size={22} />{setName}</span>
                       ))}
                     </div>
-                  ) : (
-                    "—"
-                  )}
+                  ) : "—"}
                 </td>
                 <td className="px-4 py-3">{artifactName(hero.artifactId)}</td>
               </tr>
@@ -1191,22 +832,6 @@ export default function EpicSevenGwTrackerApp() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [status, setStatus] = useState("Starting SQLite database...");
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const actionsMenuRef = useRef(null);
-  const [temporaryScreenshots, setTemporaryScreenshots] = useState({
-    R1: [],
-    R2: [],
-  });
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (!actionsMenuRef.current) return;
-      if (!actionsMenuRef.current.contains(event.target)) setActionsOpen(false);
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   async function refreshList() {
     const opponents = await loadOpponents();
@@ -1219,25 +844,6 @@ export default function EpicSevenGwTrackerApp() {
     setArtifacts(master.artifacts.length ? master.artifacts : ARTIFACT_MASTER_DATA);
     setStatus(`${prefix}. Loaded ${master.heroes.length} heroes and ${master.artifacts.length} artifacts.`);
   }
-
-  const updateMasterData = async () => {
-  try {
-    setStatus("Updating master data from Fribbels...");
-
-    const result = await updateMasterDataFromFribbels();
-
-    const master = await loadMasterData();
-    setHeroes(master.heroes.length ? master.heroes : HERO_MASTER_DATA);
-    setArtifacts(master.artifacts.length ? master.artifacts : ARTIFACT_MASTER_DATA);
-
-    setStatus(
-      `Master data updated from Fribbels. Loaded ${result.heroesCount} heroes and ${result.artifactsCount} artifacts.`
-    );
-  } catch (error) {
-    console.error(error);
-    setStatus(`Master data update failed: ${error.message || error}`);
-  }
-};
 
   useEffect(() => {
     (async () => {
@@ -1264,64 +870,10 @@ export default function EpicSevenGwTrackerApp() {
       updatedAt: new Date().toISOString(),
       rounds: {
         ...current.rounds,
-        [roundKey]: current.rounds[roundKey].map((hero, index) => (index === heroIndex ? normalizeHeroEntry(nextHero) : hero)),
+        [roundKey]: current.rounds[roundKey].map((hero, index) => index === heroIndex ? normalizeHeroEntry(nextHero) : hero),
       },
     }));
   };
-
-  const updateRoundNote = (roundKey, value) => {
-    setEntry((current) => ({
-      ...current,
-      updatedAt: new Date().toISOString(),
-      roundNotes: {
-        ...(current.roundNotes ?? { R1: "", R2: "" }),
-        [roundKey]: value,
-      },
-    }));
-  };
-
-  const addTemporaryScreenshots = (roundKey, files) => {
-  const selectedFiles = Array.from(files || []);
-  if (selectedFiles.length === 0) return;
-
-  const nextScreenshots = selectedFiles
-    .filter((file) => file.type.startsWith("image/"))
-    .map((file) => ({
-      id: uid(),
-      name: file.name,
-      url: URL.createObjectURL(file),
-    }));
-
-  setTemporaryScreenshots((current) => ({
-    ...current,
-    [roundKey]: [...(current[roundKey] ?? []), ...nextScreenshots],
-  }));
-};
-
-  const removeTemporaryScreenshot = (roundKey, screenshotId) => {
-    setTemporaryScreenshots((current) => {
-      const removed = current[roundKey]?.find((item) => item.id === screenshotId);
-
-      if (removed?.url) {
-        URL.revokeObjectURL(removed.url);
-      }
-
-      return {
-        ...current,
-        [roundKey]: (current[roundKey] ?? []).filter((item) => item.id !== screenshotId),
-      };
-    });
-  };
-
-  useEffect(() => {
-    return () => {
-      for (const roundKey of ["R1", "R2"]) {
-        for (const screenshot of temporaryScreenshots[roundKey] ?? []) {
-          URL.revokeObjectURL(screenshot.url);
-        }
-      }
-    };
-  }, [temporaryScreenshots]);
 
   const newEntry = () => {
     setEntry(blankEntry());
@@ -1379,40 +931,31 @@ export default function EpicSevenGwTrackerApp() {
       setStatus(`Current entry saved: ${savedPath}`);
     } catch (error) {
       console.error(error);
-      setStatus(`Export failed: ${error.message || error}`);
+      setStatus(`Export fallback used or failed: ${error.message || error}`);
     }
   };
 
   const exportAllEntries = async () => {
     try {
       const fullEntries = [];
-
       for (const item of savedEntries) {
         const full = await loadEntryFromDb(item.id);
         if (full) fullEntries.push(full);
       }
-
-      const payload = {
-        app: "Epic Seven GW Tracker",
-        version: 7,
-        exportedAt: new Date().toISOString(),
-        savedEntries: fullEntries,
-      };
-
+      const payload = { app: "Epic Seven GW Tracker", version: 5, exportedAt: new Date().toISOString(), savedEntries: fullEntries };
       const date = new Date().toISOString().slice(0, 10);
       const filename = `backup-${date}.json`;
       const savedPath = await saveJsonNextToExe(filename, payload);
       setStatus(`Full backup saved: ${savedPath}`);
     } catch (error) {
       console.error(error);
-      setStatus(`Backup export failed: ${error.message || error}`);
+      setStatus(`Backup export fallback used or failed: ${error.message || error}`);
     }
   };
 
   const importJson = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -1431,7 +974,6 @@ export default function EpicSevenGwTrackerApp() {
   const importHeroMasterJson = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -1450,7 +992,6 @@ export default function EpicSevenGwTrackerApp() {
   const importArtifactMasterJson = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -1477,146 +1018,57 @@ export default function EpicSevenGwTrackerApp() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 p-4 text-slate-100 md:p-6">
-      <div className="mx-auto max-w-[2400px] space-y-5 px-2">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-xl shadow-black/20 md:p-6">
+    <main className="min-h-screen bg-slate-100 p-4 text-slate-900 md:p-8">
+      <div className="mx-auto max-w-[1800px] space-y-6 px-2">
+        <header className="rounded-3xl bg-white p-6 shadow-sm md:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-sm font-medium text-slate-300">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
                 <Shield size={16} /> Epic Seven Guild War Tracker
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-50 md:text-5xl">Epic Seven Guild War Scout App</h1>
-              <p className="mt-3 max-w-2xl text-slate-400">
-                Scout enemy defenses, calculate speed ranges, and export clean Discord notes.
-              </p>
+              <h1 className="text-3xl font-black tracking-tight text-slate-950 md:text-5xl">Defense Scout Interface</h1>
+              <p className="mt-3 max-w-2xl text-slate-500">SQLite desktop version with Fribbels master data, custom image icons, JSON import/export, and Discord copy output.</p>
             </div>
-
-            <div ref={actionsMenuRef} className="relative flex items-start gap-2">
-              <button
-                onClick={newEntry}
-                className="inline-flex items-center rounded-2xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm hover:bg-slate-800"
-              >
-                <Plus className="mr-2 h-4 w-4" /> New opponent
-              </button>
-
-              <button
-                onClick={() => setActionsOpen((value) => !value)}
-                className="inline-flex items-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
-              >
-                <MoreVertical className="mr-2 h-4 w-4" /> Actions
-              </button>
-
-              {actionsOpen && (
-                <div className="absolute right-0 top-12 z-30 w-56 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-xl">
-                  <button onClick={() => { saveEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Save className="mr-2 h-4 w-4" /> Save to SQLite
-                  </button>
-
-                  <button onClick={() => {updateMasterData(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Download className="mr-2 h-4 w-4" /> Update master data
-                  </button>
-                  
-                  <button onClick={() => { exportCurrentEntry(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Download className="mr-2 h-4 w-4" /> Export entry
-                  </button>
-
-                  <button onClick={() => { exportAllEntries(); setActionsOpen(false); }} className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <FolderArchive className="mr-2 h-4 w-4" /> Export backup
-                  </button>
-
-                  <label className="flex w-full cursor-pointer items-center rounded-xl px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800">
-                    <Upload className="mr-2 h-4 w-4" /> Import JSON
-                    <input
-                      type="file"
-                      accept="application/json"
-                      onChange={(event) => {
-                        importJson(event);
-                        setActionsOpen(false);
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              )}
+            <div className="flex flex-wrap gap-2">
+              <button onClick={newEntry} className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><Plus className="mr-2 h-4 w-4" /> New opponent</button>
+              <button onClick={saveEntry} className="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800"><Save className="mr-2 h-4 w-4" /> Save to SQLite</button>
+              <button onClick={exportCurrentEntry} className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><Download className="mr-2 h-4 w-4" /> Export entry</button>
+              <button onClick={exportAllEntries} className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><FolderArchive className="mr-2 h-4 w-4" /> Export backup</button>
+              <label className="inline-flex cursor-pointer items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-slate-50"><Upload className="mr-2 h-4 w-4" /> Import JSON<input type="file" accept="application/json" onChange={importJson} className="hidden" /></label>
             </div>
           </div>
         </header>
 
-        <div className="grid gap-4 xl:grid-cols-[210px_minmax(0,1fr)]">
+        <div className="grid gap-5 xl:grid-cols-[250px_minmax(0,1fr)]">
           <aside className="space-y-4">
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-              <div className="mb-4 flex items-center gap-2">
-                <Users size={18} />
-                <h2 className="font-bold text-slate-100">Opponent</h2>
-              </div>
-              <Field
-                label="Current opponent name"
-                value={entry.opponent}
-                onChange={(value) => setEntry((current) => ({ ...current, opponent: value }))}
-                placeholder="e.g. 315 lidi"
-              />
-              <div className="mt-3">
-                <Field
-                  label="Note"
-                  value={entry.note}
-                  onChange={(value) => setEntry((current) => ({ ...current, note: value }))}
-                  placeholder="Optional scouting note"
-                />
-              </div>
+            <section className="rounded-3xl bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center gap-2"><Users size={18} /><h2 className="font-bold">Opponent</h2></div>
+              <Field label="Current opponent name" value={entry.opponent} onChange={(value) => setEntry((current) => ({ ...current, opponent: value }))} placeholder="e.g. 315 lidi" />
+              <div className="mt-3"><Field label="Note" value={entry.note} onChange={(value) => setEntry((current) => ({ ...current, note: value }))} placeholder="Optional scouting note" /></div>
             </section>
 
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-              <div className="mb-3 flex items-center gap-2">
-                <DatabaseIcon size={17} />
-                <h2 className="font-bold text-slate-100">SQLite</h2>
-              </div>
-              <p className="mb-3 text-xs font-medium text-slate-400">{status}</p>
+            <section className="rounded-3xl bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2"><DatabaseIcon size={17} /><h2 className="font-bold">SQLite</h2></div>
+              <p className="mb-3 text-xs font-medium text-slate-600">{status}</p>
               <div className="flex flex-col gap-2">
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 shadow-sm hover:bg-slate-800">
-                  <Upload className="mr-2 h-3 w-3" /> Import heroes
-                  <input type="file" accept="application/json" onChange={importHeroMasterJson} className="hidden" />
-                </label>
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 shadow-sm hover:bg-slate-800">
-                  <Upload className="mr-2 h-3 w-3" /> Import artifacts
-                  <input type="file" accept="application/json" onChange={importArtifactMasterJson} className="hidden" />
-                </label>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium shadow-sm hover:bg-slate-50"><Upload className="mr-2 h-3 w-3" /> Import heroes<input type="file" accept="application/json" onChange={importHeroMasterJson} className="hidden" /></label>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium shadow-sm hover:bg-slate-50"><Upload className="mr-2 h-3 w-3" /> Import artifacts<input type="file" accept="application/json" onChange={importArtifactMasterJson} className="hidden" /></label>
               </div>
             </section>
 
-            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-black/20">
-              <div className="mb-3 flex items-center gap-2">
-                <Search size={17} />
-                <h2 className="font-bold text-slate-100">Saved entries</h2>
-              </div>
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search..."
-                className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-indigo-500"
-              />
-
+            <section className="rounded-3xl bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2"><Search size={17} /><h2 className="font-bold">Saved entries</h2></div>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." className="mb-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400" />
               <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
                 {filteredEntries.length === 0 ? (
-                  <p className="rounded-2xl bg-slate-950 p-4 text-sm text-slate-500">No saved opponents yet.</p>
+                  <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No saved opponents yet.</p>
                 ) : (
                   filteredEntries.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`rounded-2xl border p-3 transition ${
-                        selectedId === item.id ? "border-indigo-500 bg-slate-950" : "border-slate-800 bg-slate-950"
-                      }`}
-                    >
-                      <button type="button" onClick={() => loadEntry(item)} className="w-full text-left">
-                        <p className="font-semibold text-slate-100">{item.opponent}</p>
-                        <p className="text-xs text-slate-500">Updated: {new Date(item.updatedAt).toLocaleString()}</p>
-                      </button>
+                    <div key={item.id} className={`rounded-2xl border p-3 transition ${selectedId === item.id ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white"}`}>
+                      <button type="button" onClick={() => loadEntry(item)} className="w-full text-left"><p className="font-semibold text-slate-900">{item.opponent}</p><p className="text-xs text-slate-500">Updated: {new Date(item.updatedAt).toLocaleString()}</p></button>
                       <div className="mt-2 flex gap-2">
-                        <button onClick={() => loadEntry(item)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-slate-200">
-                          <RotateCcw className="mr-1 h-3 w-3" /> Load
-                        </button>
-                        <button onClick={() => deleteEntry(item.id)} className="inline-flex h-8 items-center rounded-xl border border-slate-700 px-2 text-xs text-red-400">
-                          <Trash2 className="mr-1 h-3 w-3" /> Delete
-                        </button>
+                        <button onClick={() => loadEntry(item)} className="inline-flex h-8 items-center rounded-xl border border-slate-200 px-2 text-xs"><RotateCcw className="mr-1 h-3 w-3" /> Load</button>
+                        <button onClick={() => deleteEntry(item.id)} className="inline-flex h-8 items-center rounded-xl border border-slate-200 px-2 text-xs text-red-600"><Trash2 className="mr-1 h-3 w-3" /> Delete</button>
                       </div>
                     </div>
                   ))
@@ -1626,32 +1078,8 @@ export default function EpicSevenGwTrackerApp() {
           </aside>
 
           <div className="space-y-6">
-            <RoundPanel
-              roundKey="R1"
-              heroes={entry.rounds.R1}
-              heroMaster={heroes}
-              artifactMaster={artifacts}
-              roundNote={entry.roundNotes?.R1 ?? ""}
-              onRoundNoteChange={updateRoundNote}
-              screenshots={temporaryScreenshots.R1}
-              onAddScreenshots={addTemporaryScreenshots}
-              onRemoveScreenshot={removeTemporaryScreenshot}
-              onHeroChange={updateHero}
-            />
-
-            <RoundPanel
-              roundKey="R2"
-              heroes={entry.rounds.R2}
-              heroMaster={heroes}
-              artifactMaster={artifacts}
-              roundNote={entry.roundNotes?.R2 ?? ""}
-              screenshots={temporaryScreenshots.R2}
-              onAddScreenshots={addTemporaryScreenshots}
-              onRemoveScreenshot={removeTemporaryScreenshot}
-              onRoundNoteChange={updateRoundNote}
-              onHeroChange={updateHero}
-            />
-
+            <RoundPanel roundKey="R1" heroes={entry.rounds.R1} heroMaster={heroes} artifactMaster={artifacts} onHeroChange={updateHero} />
+            <RoundPanel roundKey="R2" heroes={entry.rounds.R2} heroMaster={heroes} artifactMaster={artifacts} onHeroChange={updateHero} />
             <SummaryTable entry={entry} artifactMaster={artifacts} onCopyDiscord={copyDiscord} />
           </div>
         </div>
